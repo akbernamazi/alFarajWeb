@@ -139,6 +139,7 @@ const state = {
 };
 let leafletMap = null;
 let surahRequestId = 0;
+const mobilePrayerPanelQuery = window.matchMedia("(max-width: 640px)");
 
 function t(key) {
   const lang = state.settings.language in I18N ? state.settings.language : "en";
@@ -443,6 +444,29 @@ function wireMobileSidebar() {
   mobileQuery.addEventListener("change", (e) => {
     if (!e.matches) closeSidebar();
   });
+}
+
+function syncPrayerPanelPlacement() {
+  const prayerPanel = document.getElementById("prayer-panel");
+  const mobileSlot = document.getElementById("mobile-prayer-slot");
+  const sideNav = document.getElementById("side-nav");
+  const sideNavHead = sideNav?.querySelector(".side-nav-head");
+  if (!prayerPanel || !mobileSlot || !sideNav) return;
+
+  if (mobilePrayerPanelQuery.matches) {
+    if (prayerPanel.parentElement !== mobileSlot) {
+      mobileSlot.prepend(prayerPanel);
+    }
+    return;
+  }
+
+  if (prayerPanel.parentElement !== sideNav) {
+    if (sideNavHead?.nextSibling) {
+      sideNav.insertBefore(prayerPanel, sideNavHead.nextSibling);
+    } else {
+      sideNav.appendChild(prayerPanel);
+    }
+  }
 }
 
 function setLibraryPanelVisibility(visible) {
@@ -1365,6 +1389,8 @@ async function load() {
   wirePrayerLocationControls();
   wireMobileSidebar();
   wireLibraryViewer();
+  syncPrayerPanelPlacement();
+  mobilePrayerPanelQuery.addEventListener("change", syncPrayerPanelPlacement);
   renderTodayAmaal(parseIsoDate(state.amaalDate) || new Date());
 
   try {

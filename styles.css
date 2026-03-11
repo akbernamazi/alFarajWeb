@@ -124,6 +124,10 @@ body {
   gap: 16px;
 }
 
+#mobile-prayer-slot {
+  display: none;
+}
+
 .main-content.library-focus > :not(#library-panel) {
   display: none;
 }
@@ -571,15 +575,19 @@ body {
   }
 
   .hero {
-    padding-right: 68px;
+    padding-right: 0;
   }
 
   .hamburger-btn {
     display: inline-flex;
-    position: absolute;
-    right: 0;
-    top: 0;
+    position: fixed;
+    right: 14px;
+    top: 14px;
     z-index: 1201;
+    background: rgba(4, 13, 27, 0.9);
+    border-color: rgba(143, 183, 255, 0.35);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(4px);
   }
 
   .sidebar-backdrop {
@@ -600,6 +608,10 @@ body {
 
   .side-layout {
     grid-template-columns: 1fr;
+  }
+
+  #mobile-prayer-slot {
+    display: block;
   }
 
   .side-nav {
