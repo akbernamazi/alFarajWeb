@@ -89,7 +89,7 @@ const LIBRARY_SECTIONS = [
   },
   {
     title: "Marsiya",
-    meta: "Wafath e Rasool e Khuda (complete section)",
+    meta: "Browse sections and poem titles from Marsiya index.",
     entries: [
       { title: "Select a Marsiya", text: "Pick a Marsiya title from the left panel list to open it here." }
     ]
@@ -105,30 +105,44 @@ const LIBRARY_SECTIONS = [
   }
 ];
 const COMING_SOON_LIBRARY_INDEXES = new Set([1, 2, 3, 4, 6]);
-const MARSIYA_ITEMS = [
+const MARSIYA_CATALOG_URL = "./content/marsiya/catalog.json";
+const DEFAULT_MARSIYA_SECTIONS = [
   {
-    id: "wafath-aye-momino",
-    title: "Aye Momino Yasrab Me Ajab Nowha Gari Hai",
-    content:
-      "AYE MOMINO YASRAB ME AJAB NOWHA GARI HAI\nZEHRA KE LIYE DAGHE GHAME BE PIDARI HAI\nLAB KHUSHK HAI MUH ZARD HAI AANKHON ME TARI HAI\nPAIGHAMBARE KONAIN CHIRAGHE SAHARI HAI\n\nJISKA KALMA PADHTE HAIN SAB MOMINE DEENDAR\nAB AAZIME FIRDOUS HAI WO QHASA-E-GHAFFAR\nMAKKE ME MADINE ME TABAHI KE HAIN AASAAR\nAB HOTE HAIN UMMAT SE JUDA AHMED-E-MUQTAR\n\nDO CHEEZEN MAIN CHODDE HUWE JAATA HOON MAGAR HAAN\nWO EK TO MERI AAL HAI AUR AIK HAI QURAAN\nQURAAN KI HAFIZ MERI ITRAT HAI NIGAHBAAN\nYE DONO BUZURGI WO FAZILAT ME HAIN YAKSAAN"
+    id: "section-wafath-e-rasoole-qhuda",
+    title: "WAFATH E RASOOLE QHUDA",
+    poems: [
+      {
+        id: "aye-momino-yasrab-me-ajab-nowha-gari-hai",
+        title: "AYE MOMINO YASRAB ME AJAB NOWHA GARI HAI",
+        file: "./content/marsiya/aye-momino-yasrab-me-ajab-nowha-gari-hai.txt"
+      }
+    ]
   },
   {
-    id: "wafath-jab-utt-gaye",
-    title: "Jab Utt Gaye Mehboobe Khuda Daare Fannah Se",
-    content:
-      "JAB UTT GAYE MEHBOOBE KHUDA DAARE FANNAH SE\nMATAM KI SADA AANE LAGI ARZO SAMA SE\nSAR PEETTE THE AHMED-E-MURSAL KE NAWASE\nEK TEHALKA THA FATEMA ZEHRA KI BUKA SE\n\nCHILLATHI THI HAI HAI MERE BABA MERE BABA\nTANG AAYE HAIN IS RONE SE HAMSA-E-YE ZEHRA\nHYDER SE KIYA FATEMA KE RONE KA SHIKWA\nYAA DIN KO BUKA KEEJIYE YA RO-E-YE SHAB KO\n\nFARZANDON KO PHIR FATEMA ZEHRA NE BULAYA\nCHAATI SE LAGAYA KABHI SEENE SE LAGAYA\nLO PYARO KE HANGAAM-E-JUDAAI KA AB AAYA\nAB TUM SE JUDA HOTI BATOOL-E-UZRA HAI"
-  },
-  {
-    id: "wafath-zainab-jawab-do",
-    title: "Kahti Thi Roke Zainab-e-Nalaan Jawab Do",
-    content:
-      "KAHTI THI ROKE ZAINAB-E-NALAAN JAWAB DO\nQAAMOSH KYUN HO AYE MERI AMMA JAWAB DO\nAMMA JAWAB DO MERI AMMA JAWAB DO\n\nBHAI HUSSAIN ROTE HAIN UTHKAR GALE LAGAO\nGHAM ME TUMHARE PEETTE HAIN SAR INHE MANAO\nPHIR AIK BAAR BETI KO APNI SADA SUNAAO\nBETI KHADI HAI MUZTAR-O-HAIRAAN JAWAB DO\n\nAYE MERI GHAMZADA-O-DILAFGAAR AMMA JAAN\nMAHBOOB-E-KIBRIYA KI AZADAAR AMMA JAAN\nEK BAAR TOU ZABAAN SE KUCH BOLO AMMA JAAN\nAMMA JAWAB DO MERI AMMA JAWAB DO"
-  },
-  {
-    id: "wafath-roke-kehti-fatema",
-    title: "Roke Kehti Thi Fatema Zehra",
-    content:
-      "ROKE KEHTI THI FATEMA ZEHRA\nSUNLO RUDAAD YA HABEEBE QUDA\nGHAM SE JALTA HAI AB JIGAR MERA\nKYA YAHI AJR HAI RISALATH KA\n\nAAP KE BAAD MUJH PE ZULM HUWE\nMUJH KO UMMAT NE HAI DIYE SADME\nDIN PE PADTE TO RAAT HOJAATI\nACHCHA HOTA JO MAI GUZAR JAATI\n\nMERA MOHSIN KO HAAE WAWAILA\nBEHAYAON NE QATL KAR DALA\nMU KO ASHKO SE DHOTI RAHTI HUN\nAPNE MOHSIN KO ROTI RAHTI HUN"
+    id: "section-shahadath-hzt-fatima-zehra-a-s",
+    title: "SHAHADATH HZT FATIMA ZEHRA A.S",
+    poems: [
+      {
+        id: "bilqees-paasban-hai-ye-kiski-janaab-hai",
+        title: "BILQEES PAASBAN HAI YE KISKI JANAAB HAI",
+        file: "./content/marsiya/bilqees-paasban-hai-ye-kiski-janaab-hai.txt"
+      },
+      {
+        id: "jab-utt-gaye-mehboobe-khuda-daare-fannah-se",
+        title: "JAB UTT GAYE MEHBOOBE KHUDA DAARE FANNAH SE",
+        file: "./content/marsiya/jab-utt-gaye-mehboobe-khuda-daare-fannah-se.txt"
+      },
+      {
+        id: "kahti-thi-roke-zainab-e-nalaan-jawab-do",
+        title: "KAHTI THI ROKE ZAINAB -E- NALAAN JAWAB DO",
+        file: "./content/marsiya/kahti-thi-roke-zainab-e-nalaan-jawab-do.txt"
+      },
+      {
+        id: "roke-kehti-thi-fatema-zehra",
+        title: "ROKE KEHTI THI FATEMA ZEHRA",
+        file: "./content/marsiya/roke-kehti-thi-fatema-zehra.txt"
+      }
+    ]
   }
 ];
 
@@ -160,10 +174,14 @@ const state = {
   selectedSurah: null,
   surahCache: {},
   surahLangs: { english: true, urdu: false },
-  selectedMarsiya: null
+  selectedMarsiya: null,
+  selectedMarsiyaSection: null,
+  marsiyaCache: {},
+  marsiyaSections: DEFAULT_MARSIYA_SECTIONS
 };
 let leafletMap = null;
 let surahRequestId = 0;
+let marsiyaRequestId = 0;
 const mobilePrayerPanelQuery = window.matchMedia("(max-width: 640px)");
 
 function t(key) {
@@ -535,34 +553,260 @@ function renderMarsiyaList() {
   const root = document.getElementById("marsiya-list");
   if (!root) return;
   root.innerHTML = "";
-  MARSIYA_ITEMS.forEach((item) => {
-    const btn = document.createElement("button");
-    btn.className = "marsiya-item";
-    if (state.libraryOpen && state.libraryIndex === 5 && state.selectedMarsiya === item.id) {
-      btn.classList.add("active");
-    }
-    btn.type = "button";
-    btn.setAttribute("data-marsiya-id", item.id);
-    btn.textContent = item.title;
-    root.appendChild(btn);
+  const selectedFromPoem = state.selectedMarsiya ? getMarsiyaById(state.selectedMarsiya)?.sectionId : null;
+  const selectedSectionId = state.selectedMarsiyaSection || selectedFromPoem;
+
+  state.marsiyaSections.forEach((section) => {
+    const block = document.createElement("details");
+    block.className = "marsiya-section";
+    block.open = selectedSectionId === section.id;
+
+    const summary = document.createElement("summary");
+    summary.textContent = section.title;
+    block.appendChild(summary);
+
+    const body = document.createElement("div");
+    body.className = "marsiya-section-list";
+
+    section.poems.forEach((item, index) => {
+      const btn = document.createElement("button");
+      btn.className = "marsiya-item";
+      if (state.libraryOpen && state.libraryIndex === 5 && state.selectedMarsiya === item.id) {
+        btn.classList.add("active");
+      }
+      btn.type = "button";
+      btn.setAttribute("data-marsiya-id", item.id);
+      btn.textContent = item.title;
+      body.appendChild(btn);
+
+      if (index < section.poems.length - 1) {
+        const divider = document.createElement("hr");
+        divider.className = "marsiya-divider";
+        body.appendChild(divider);
+      }
+    });
+
+    block.appendChild(body);
+    root.appendChild(block);
   });
 }
 
-function renderSelectedMarsiya(itemId) {
+function getMarsiyaById(itemId) {
+  for (const section of state.marsiyaSections) {
+    const poem = section.poems.find((item) => item.id === itemId);
+    if (poem) return { ...poem, sectionId: section.id, sectionTitle: section.title };
+  }
+  return null;
+}
+
+function getMarsiyaSectionById(sectionId) {
+  return state.marsiyaSections.find((section) => section.id === sectionId) || null;
+}
+
+function createMarsiyaCrumb(label, type, value, active = false) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "marsiya-crumb";
+  if (active) btn.classList.add("active");
+  btn.textContent = label;
+  btn.setAttribute("data-marsiya-nav", type);
+  if (value) btn.setAttribute("data-marsiya-nav-value", value);
+  return btn;
+}
+
+function renderMarsiyaIndex() {
   const titleEl = document.getElementById("library-title");
   const metaEl = document.getElementById("library-meta");
   const contentEl = document.getElementById("library-content");
   if (!titleEl || !metaEl || !contentEl) return;
 
-  const item = MARSIYA_ITEMS.find((x) => x.id === itemId);
-  if (!item) return;
-  titleEl.textContent = `Marsiya · ${item.title}`;
-  metaEl.textContent = "Section: Wafath e Rasool e Khuda";
+  titleEl.textContent = "Marsiya";
+  metaEl.textContent = "Index";
   contentEl.innerHTML = "";
-  const card = createItemCard(item.title, item.content);
-  const text = card.querySelector("p");
-  if (text) text.style.whiteSpace = "pre-line";
-  contentEl.appendChild(card);
+
+  const nav = document.createElement("div");
+  nav.className = "marsiya-crumbs";
+  nav.appendChild(createMarsiyaCrumb("Index", "index", "", true));
+  contentEl.appendChild(nav);
+
+  state.marsiyaSections.forEach((section) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "item marsiya-index-item marsiya-index-button";
+    row.setAttribute("data-marsiya-nav", "section");
+    row.setAttribute("data-marsiya-nav-value", section.id);
+
+    const head = document.createElement("div");
+    head.className = "item-head";
+    const h3 = document.createElement("h3");
+    h3.textContent = `${section.title} (${section.poems.length})`;
+    head.appendChild(h3);
+    row.appendChild(head);
+
+    contentEl.appendChild(row);
+  });
+}
+
+function renderMarsiyaSection(sectionId) {
+  const titleEl = document.getElementById("library-title");
+  const metaEl = document.getElementById("library-meta");
+  const contentEl = document.getElementById("library-content");
+  if (!titleEl || !metaEl || !contentEl) return;
+
+  const section = getMarsiyaSectionById(sectionId);
+  if (!section) {
+    renderMarsiyaIndex();
+    return;
+  }
+
+  state.selectedMarsiyaSection = section.id;
+  state.selectedMarsiya = null;
+
+  titleEl.textContent = `Marsiya · ${section.title}`;
+  metaEl.textContent = "Section";
+  contentEl.innerHTML = "";
+
+  const nav = document.createElement("div");
+  nav.className = "marsiya-crumbs";
+  nav.appendChild(createMarsiyaCrumb("Index", "index"));
+  nav.appendChild(document.createTextNode("›"));
+  nav.appendChild(createMarsiyaCrumb(section.title, "section", section.id, true));
+  contentEl.appendChild(nav);
+
+  section.poems.forEach((poem) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "item marsiya-index-item marsiya-index-button";
+    row.setAttribute("data-marsiya-nav", "poem");
+    row.setAttribute("data-marsiya-nav-value", poem.id);
+
+    const head = document.createElement("div");
+    head.className = "item-head";
+    const h3 = document.createElement("h3");
+    h3.textContent = poem.title;
+    head.appendChild(h3);
+    row.appendChild(head);
+
+    contentEl.appendChild(row);
+  });
+}
+
+async function loadMarsiyaCatalog() {
+  try {
+    const res = await fetch(MARSIYA_CATALOG_URL, { cache: "no-store" });
+    if (!res.ok) return;
+    const payload = await res.json();
+    if (!Array.isArray(payload) || payload.length === 0) return;
+    state.marsiyaSections = payload
+      .filter((section) => section && Array.isArray(section.poems))
+      .map((section) => ({
+        id: String(section.id || section.title || ""),
+        title: String(section.title || "Untitled Section"),
+        poems: section.poems.map((poem) => ({
+          id: String(poem.id || ""),
+          title: String(poem.title || "Untitled Marsiya"),
+          page: poem.page,
+          file: poem.file || null
+        }))
+      }))
+      .filter((section) => section.poems.length > 0);
+  } catch {
+    // Keep default sections when catalog cannot be loaded.
+  }
+}
+
+async function fetchMarsiyaText(item) {
+  if (!item.file) return null;
+  const cached = state.marsiyaCache[item.id];
+  if (cached) return cached;
+  const res = await fetch(item.file);
+  if (!res.ok) throw new Error(`Marsiya file load failed (${res.status})`);
+  const text = await res.text();
+  state.marsiyaCache[item.id] = text;
+  return text;
+}
+
+function formatMarsiyaForDisplay(text) {
+  const stanzas = String(text || "")
+    .replace(/\r\n/g, "\n")
+    .trim()
+    .split(/\n{2,}/);
+
+  const formatted = stanzas.map((stanza) => {
+    const lines = stanza
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    return lines
+      .map((line, index) => {
+        const cycleIndex = index % 6;
+        if (cycleIndex === 4 || cycleIndex === 5) {
+          return line.startsWith("\t") ? line : `\t${line}`;
+        }
+        return line;
+      })
+      .join("\n");
+  });
+
+  return formatted.join("\n\n");
+}
+
+async function renderSelectedMarsiya(itemId) {
+  const titleEl = document.getElementById("library-title");
+  const metaEl = document.getElementById("library-meta");
+  const contentEl = document.getElementById("library-content");
+  if (!titleEl || !metaEl || !contentEl) return;
+
+  const item = getMarsiyaById(itemId);
+  if (!item) return;
+  state.selectedMarsiya = item.id;
+  state.selectedMarsiyaSection = item.sectionId;
+  titleEl.textContent = `Marsiya · ${item.title}`;
+  metaEl.textContent = `Section: ${item.sectionTitle}`;
+  contentEl.innerHTML = "";
+  contentEl.appendChild(createItemCard("Loading", "Fetching marsiya text..."));
+  const requestId = ++marsiyaRequestId;
+
+  try {
+    const textContent = await fetchMarsiyaText(item);
+    if (requestId !== marsiyaRequestId) return;
+    if (!state.libraryOpen || state.libraryIndex !== 5 || state.selectedMarsiya !== itemId) return;
+    if (!textContent) {
+      contentEl.innerHTML = "";
+      contentEl.appendChild(
+        createItemCard(
+          "Coming Soon",
+          `Text for "${item.title}" is listed in the index and will be added shortly.`
+        )
+      );
+      return;
+    }
+    contentEl.innerHTML = "";
+    const reader = document.createElement("article");
+    reader.className = "item";
+
+    const nav = document.createElement("div");
+    nav.className = "marsiya-crumbs";
+    nav.appendChild(createMarsiyaCrumb("Index", "index"));
+    nav.appendChild(document.createTextNode("›"));
+    nav.appendChild(createMarsiyaCrumb(item.sectionTitle, "section", item.sectionId));
+    nav.appendChild(document.createTextNode("›"));
+    nav.appendChild(createMarsiyaCrumb(item.title, "poem", item.id, true));
+    reader.appendChild(nav);
+
+    const body = document.createElement("pre");
+    body.className = "marsiya-plain-text";
+    body.textContent = formatMarsiyaForDisplay(textContent);
+    reader.appendChild(body);
+
+    contentEl.appendChild(reader);
+  } catch (err) {
+    if (requestId !== marsiyaRequestId) return;
+    const message = err instanceof Error ? err.message : "Unknown error";
+    contentEl.innerHTML = "";
+    contentEl.appendChild(createItemCard("Failed to load Marsiya", message));
+  }
 }
 
 function setSurahLangControlsVisible(visible) {
@@ -706,10 +950,25 @@ function renderLibrarySection(index = 0) {
     return;
   }
 
+  if (normalized === 5 && state.selectedMarsiyaSection) {
+    updateLibraryActiveState();
+    renderQuranSurahList(document.getElementById("quran-surah-search")?.value || "");
+    renderMarsiyaList();
+    renderMarsiyaSection(state.selectedMarsiyaSection);
+    return;
+  }
+
   setSurahLangControlsVisible(false);
   titleEl.textContent = current.title;
   metaEl.textContent = current.meta;
   contentEl.innerHTML = "";
+  if (normalized === 5) {
+    renderMarsiyaIndex();
+    updateLibraryActiveState();
+    renderQuranSurahList(document.getElementById("quran-surah-search")?.value || "");
+    renderMarsiyaList();
+    return;
+  }
   if (COMING_SOON_LIBRARY_INDEXES.has(normalized)) {
     const banner = document.createElement("p");
     banner.className = "coming-soon-banner";
@@ -732,7 +991,6 @@ function toggleLibrarySection(index) {
     setLibraryPanelVisibility(false);
     setSurahLangControlsVisible(false);
     state.selectedSurah = null;
-    state.selectedMarsiya = null;
     updateLibraryActiveState();
     renderQuranSurahList(document.getElementById("quran-surah-search")?.value || "");
     renderMarsiyaList();
@@ -740,7 +998,6 @@ function toggleLibrarySection(index) {
   }
   state.libraryOpen = true;
   if (normalized !== 0) state.selectedSurah = null;
-  if (normalized !== 5) state.selectedMarsiya = null;
   setLibraryPanelVisibility(true);
   renderLibrarySection(normalized);
 }
@@ -784,12 +1041,47 @@ function wireLibraryViewer() {
     if (!btn) return;
     const itemId = btn.getAttribute("data-marsiya-id");
     if (!itemId) return;
+    const picked = getMarsiyaById(itemId);
     state.libraryOpen = true;
     state.libraryIndex = 5;
     state.selectedMarsiya = itemId;
+    state.selectedMarsiyaSection = picked?.sectionId || state.selectedMarsiyaSection;
     setLibraryPanelVisibility(true);
     setSurahLangControlsVisible(false);
     renderLibrarySection(5);
+  });
+
+  const libraryContent = document.getElementById("library-content");
+  libraryContent?.addEventListener("click", (event) => {
+    const target = event.target;
+    const btn = target && target.closest ? target.closest("[data-marsiya-nav]") : null;
+    if (!btn || state.libraryIndex !== 5 || !state.libraryOpen) return;
+    const navType = btn.getAttribute("data-marsiya-nav");
+    const navValue = btn.getAttribute("data-marsiya-nav-value") || "";
+
+    if (navType === "index") {
+      state.selectedMarsiya = null;
+      state.selectedMarsiyaSection = null;
+      renderMarsiyaList();
+      renderMarsiyaIndex();
+      return;
+    }
+
+    if (navType === "section") {
+      state.selectedMarsiya = null;
+      state.selectedMarsiyaSection = navValue;
+      renderMarsiyaList();
+      renderMarsiyaSection(navValue);
+      return;
+    }
+
+    if (navType === "poem" && navValue) {
+      state.selectedMarsiya = navValue;
+      const item = getMarsiyaById(navValue);
+      state.selectedMarsiyaSection = item?.sectionId || state.selectedMarsiyaSection;
+      renderMarsiyaList();
+      renderSelectedMarsiya(navValue);
+    }
   });
 
   const englishCheck = document.querySelector('input[name="surah-lang-english"]');
@@ -1475,6 +1767,7 @@ async function load() {
   wireAmaalDateControls();
   wirePrayerLocationControls();
   wireMobileSidebar();
+  await loadMarsiyaCatalog();
   wireLibraryViewer();
   syncPrayerPanelPlacement();
   mobilePrayerPanelQuery.addEventListener("change", syncPrayerPanelPlacement);

@@ -219,6 +219,37 @@ body {
   gap: 6px;
 }
 
+.marsiya-section {
+  border: 1px solid rgba(143, 183, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.marsiya-section > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.marsiya-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.marsiya-section-list {
+  display: grid;
+  gap: 6px;
+  padding: 0 8px 8px;
+}
+
+.marsiya-divider {
+  border: 0;
+  border-top: 1px solid rgba(143, 183, 255, 0.25);
+  margin: 2px 0;
+}
+
 .quran-surah-item {
   border-radius: 9px;
   border: 1px solid rgba(143, 183, 255, 0.22);
@@ -249,6 +280,58 @@ body {
 .marsiya-item.active {
   border-color: rgba(72, 229, 194, 0.6);
   background: rgba(72, 229, 194, 0.12);
+}
+
+.marsiya-plain-text {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 0.96rem;
+  line-height: 1.6;
+}
+
+.marsiya-crumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 0.84rem;
+}
+
+.marsiya-crumb {
+  border: 1px solid rgba(143, 183, 255, 0.24);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.marsiya-crumb.active {
+  border-color: rgba(72, 229, 194, 0.55);
+  background: rgba(72, 229, 194, 0.15);
+}
+
+.marsiya-index-item {
+  display: grid;
+  gap: 10px;
+}
+
+.marsiya-index-button {
+  width: 100%;
+  text-align: left;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  color: var(--text);
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.marsiya-index-button:hover {
+  border-color: rgba(72, 229, 194, 0.45);
 }
 
 .library-side-item.active > summary {
