@@ -35,84 +35,119 @@
         </div>
       </header>
 
-      <section class="grid settings-grid">
-        <article class="panel">
-          <h2>Settings</h2>
-          <p class="meta">Language and reading comfort</p>
-          <div class="control-row">
-            <label for="language-select">Language</label>
-            <select id="language-select">
-              <option value="en">English</option>
-              <option value="ur">Urdu</option>
-              <option value="hi">Hindi</option>
-            </select>
-          </div>
-          <div class="control-row">
-            <label for="font-size-range">Font size</label>
-            <input id="font-size-range" type="range" min="14" max="22" step="1" />
-            <span id="font-size-value"></span>
-          </div>
-          <div class="control-row">
-            <label for="api-base-url">API Base URL</label>
-            <input id="api-base-url" placeholder="https://your-api-domain/api/v1" />
-            <button id="save-api-url">Save API URL</button>
-          </div>
-        </article>
+      <section class="side-layout">
+        <aside class="side-nav">
+          <article class="panel">
+            <h2>Prayer Tracker</h2>
+            <p class="meta">Mark completed prayer days</p>
+            <div id="prayer-tracker" class="calendar-grid"></div>
+          </article>
 
-        <article class="panel">
-          <h2>Prayer Tracker</h2>
-          <p class="meta">Mark completed prayer days</p>
-          <div id="prayer-tracker" class="calendar-grid"></div>
-        </article>
-      </section>
+          <details class="side-item">
+            <summary>Public Events</summary>
+            <article class="panel" id="public-panel">
+              <p class="meta">Available now</p>
+              <div class="list" id="public-events"></div>
+            </article>
+          </details>
 
-      <section class="grid">
-        <article class="panel" id="public-panel">
-          <h2>Public Events</h2>
-          <p class="meta">Available now</p>
-          <div class="list" id="public-events"></div>
-        </article>
+          <details class="side-item">
+            <summary>Private Invites</summary>
+            <article class="panel" id="private-panel">
+              <p class="meta">For user <code>u1</code></p>
+              <div class="list" id="private-events"></div>
+            </article>
+          </details>
 
-        <article class="panel" id="private-panel">
-          <h2>Private Invites</h2>
-          <p class="meta">For user <code>u1</code></p>
-          <div class="list" id="private-events"></div>
-        </article>
+          <details class="side-item">
+            <summary>Favorites</summary>
+            <article class="panel">
+              <p class="meta">Starred for later review</p>
+              <div class="list" id="favorites"></div>
+            </article>
+          </details>
 
-        <article class="panel" id="prayer-panel">
-          <h2>Prayer Timeline</h2>
-          <p class="meta">Today</p>
-          <div class="times" id="prayer-times"></div>
-        </article>
+          <details class="side-item">
+            <summary>Quran Bookmark</summary>
+            <article class="panel">
+              <p class="meta">Save where you stopped reading</p>
+              <div class="bookmark-form">
+                <input id="bookmark-surah" placeholder="Surah (e.g. Al-Baqarah)" />
+                <input id="bookmark-ayah" placeholder="Ayah (e.g. 255)" />
+                <button id="save-bookmark">Save Bookmark</button>
+              </div>
+              <div class="list" id="bookmark-view"></div>
+            </article>
+          </details>
 
-        <article class="panel" id="places-panel">
-          <h2>Prayer Places</h2>
-          <p class="meta">Nearby options</p>
-          <div class="list" id="places"></div>
-        </article>
+          <details class="side-item">
+            <summary>Settings</summary>
+            <article class="panel">
+              <p class="meta">Language and reading comfort</p>
+              <div class="control-row">
+                <label for="language-select">Language</label>
+                <select id="language-select">
+                  <option value="en">English</option>
+                  <option value="ur">Urdu</option>
+                  <option value="hi">Hindi</option>
+                </select>
+              </div>
+              <div class="control-row">
+                <label for="font-size-range">Font size</label>
+                <input id="font-size-range" type="range" min="14" max="22" step="1" />
+                <span id="font-size-value"></span>
+              </div>
+              <div class="control-row">
+                <label for="api-base-url">API Base URL</label>
+                <input id="api-base-url" placeholder="https://your-api-domain/api/v1" />
+                <button id="save-api-url">Save API URL</button>
+              </div>
+            </article>
+          </details>
+        </aside>
 
-        <article class="panel panel-wide" id="map-panel">
-          <h2>Live Map</h2>
-          <p class="meta">Public events, private invites, and prayer places</p>
-          <div id="map"></div>
-        </article>
+        <div class="main-content">
+          <article class="panel" id="prayer-panel">
+            <h2>Prayer Timeline</h2>
+            <p class="meta">Today · Shia Jafari</p>
+            <div class="times" id="prayer-times"></div>
+          </article>
 
-        <article class="panel">
-          <h2>Favorites</h2>
-          <p class="meta">Starred for later review</p>
-          <div class="list" id="favorites"></div>
-        </article>
+          <article class="panel" id="amaal-panel">
+            <h2>Todays Amaal</h2>
+            <p class="meta">Daily recommended actions</p>
+            <div class="list" id="today-amaal">
+              <article class="item">
+                <h3>Quran Recitation</h3>
+                <p>Read at least 10 ayahs with reflection.</p>
+              </article>
+              <article class="item">
+                <h3>Istighfar</h3>
+                <p>Recite Astaghfirullah 100 times.</p>
+              </article>
+              <article class="item">
+                <h3>Salawat</h3>
+                <p>Recite Salawat on Muhammad and Aale Muhammad 100 times.</p>
+              </article>
+              <article class="item">
+                <h3>Dua</h3>
+                <p>Read Dua-e-Faraj and pray for the entire ummah.</p>
+              </article>
+            </div>
+          </article>
 
-        <article class="panel">
-          <h2>Quran Bookmark</h2>
-          <p class="meta">Save where you stopped reading</p>
-          <div class="bookmark-form">
-            <input id="bookmark-surah" placeholder="Surah (e.g. Al-Baqarah)" />
-            <input id="bookmark-ayah" placeholder="Ayah (e.g. 255)" />
-            <button id="save-bookmark">Save Bookmark</button>
-          </div>
-          <div class="list" id="bookmark-view"></div>
-        </article>
+          <article class="panel" id="places-panel">
+            <h2>Prayer Places</h2>
+            <p class="meta">Nearby options</p>
+            <div class="list" id="places"></div>
+          </article>
+
+          <article class="panel" id="map-panel">
+            <h2>Live Map</h2>
+            <p class="meta">Prayer places and events</p>
+            <div id="map"></div>
+          </article>
+        </div>
       </section>
     </main>
     <script

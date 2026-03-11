@@ -1,14 +1,16 @@
 const DEFAULT_API_BASE_URL =
   window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-    ? "http://localhost:4000/api/v1"
-    : "https://akbernamazi.github.io/alFarajService/api/v1";
+    ? "http://localhost:4000"
+    : "https://akbernamazi.github.io/alFarajService";
 
 const STORAGE_KEYS = {
   settings: "aza.settings.v1",
   favorites: "aza.favorites.v1",
   bookmark: "aza.bookmark.v1",
   tracker: "aza.tracker.v1",
-  apiCachePrefix: "aza.api.cache."
+  apiCachePrefix: "aza.api.cache.",
+  locationPrompted: "aza.location.prompted.v1",
+  livePrayerCache: "aza.live.prayer.cache.v1"
 };
 
 const I18N = {
@@ -58,16 +60,21 @@ function getApiBaseUrl() {
 
 function resolveApiUrl(path) {
   const apiBaseUrl = getApiBaseUrl();
-  const raw = `${apiBaseUrl}${path}`;
+  const requestPath = path.startsWith("/") ? path : `/${path}`;
+  const normalizedPath =
+    apiBaseUrl.endsWith("/api/v1") && requestPath.startsWith("/api/v1/")
+      ? requestPath.slice("/api/v1".length)
+      : requestPath;
+  const raw = `${apiBaseUrl}${normalizedPath}`;
   if (!apiBaseUrl.includes("github.io")) return raw;
 
   const url = new URL(raw);
   let cleanPath = url.pathname;
-  if (cleanPath.endsWith("/events/private")) cleanPath = `${cleanPath}.json`;
-  if (cleanPath.endsWith("/prayer-times")) cleanPath = `${cleanPath}.json`;
-  if (cleanPath.endsWith("/events/public")) cleanPath = `${cleanPath}.json`;
-  if (cleanPath.endsWith("/prayer-places")) cleanPath = `${cleanPath}.json`;
-  if (cleanPath.endsWith("/health")) cleanPath = `${cleanPath}.json`;
+  if (/(\/api\/v1)?\/events\/private$/.test(cleanPath)) cleanPath = `${cleanPath}.json`;
+  if (/(\/api\/v1)?\/prayer-times$/.test(cleanPath)) cleanPath = `${cleanPath}.json`;
+  if (/(\/api\/v1)?\/events\/public$/.test(cleanPath)) cleanPath = `${cleanPath}.json`;
+  if (/(\/api\/v1)?\/prayer-places$/.test(cleanPath)) cleanPath = `${cleanPath}.json`;
+  if (/(\/api\/v1)?\/health$/.test(cleanPath)) cleanPath = `${cleanPath}.json`;
   url.pathname = cleanPath;
   url.search = "";
   return url.toString();
@@ -84,6 +91,67 @@ function loadJSON(key, fallback) {
 
 function saveJSON(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
+}
+
+function toDdMmYyyy(dateStr) {
+  const [year, month, day] = dateStr.split("-");
+  return `${day}-${month}-${year}`;
+}
+
+function onlyTime(value) {
+  return String(value || "").split(" ")[0];
+}
+
+function getCurrentPositionOnce() {
+  if (!("geolocation" in navigator)) return Promise.resolve(null);
+  if (localStorage.getItem(STORAGE_KEYS.locationPrompted) === "1") return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        localStorage.setItem(STORAGE_KEYS.locationPrompted, "1");
+        resolve(position.coords);
+      },
+      () => {
+        localStorage.setItem(STORAGE_KEYS.locationPrompted, "1");
+        resolve(null);
+      },
+      { enableHighAccuracy: false, timeout: 7000, maximumAge: 10 * 60 * 1000 }
+    );
+  });
+}
+
+async function getLivePrayerTimes(dateStr) {
+  const coords = await getCurrentPositionOnce();
+  if (!coords) {
+    return loadJSON(STORAGE_KEYS.livePrayerCache, null);
+  }
+
+  const dateParam = toDdMmYyyy(dateStr);
+  const url = `https://api.aladhan.com/v1/timings/${dateParam}?latitude=${coords.latitude}&longitude=${coords.longitude}&method=0`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Live prayer API failed (${res.status})`);
+  const payload = await res.json();
+  const timings = payload?.data?.timings;
+  if (!timings) throw new Error("Live prayer API returned invalid payload");
+
+  const shaped = {
+    date: dateStr,
+    location: {
+      lat: Number(coords.latitude.toFixed(4)),
+      lng: Number(coords.longitude.toFixed(4))
+    },
+    source: "Shia Jafari (method 0)",
+    times: {
+      fajr: onlyTime(timings.Fajr),
+      dhuhr: onlyTime(timings.Dhuhr),
+      asr: onlyTime(timings.Asr),
+      maghrib: onlyTime(timings.Maghrib),
+      isha: onlyTime(timings.Isha)
+    }
+  };
+  saveJSON(STORAGE_KEYS.livePrayerCache, shaped);
+  return shaped;
 }
 
 async function getJSON(path) {
@@ -204,14 +272,32 @@ function renderPrayerTracker() {
   const year = now.getFullYear();
   const month = now.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const gregorianTitle = new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(now);
+  const hijriTitle = new Intl.DateTimeFormat("en-TN-u-ca-islamic", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(now);
 
-  root.innerHTML = `<div class="tracker-tip">${t("trackerTip")}</div>`;
+  root.innerHTML = `
+    <div class="tracker-tip">${t("trackerTip")}</div>
+    <div class="tracker-head">
+      <span>${gregorianTitle}</span>
+      <span>${hijriTitle} AH</span>
+    </div>
+  `;
 
   for (let day = 1; day <= daysInMonth; day += 1) {
     const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const dayDate = new Date(year, month, day);
+    const hijriDay = new Intl.DateTimeFormat("en-TN-u-ca-islamic", { day: "numeric" }).format(dayDate);
     const btn = document.createElement("button");
     btn.className = `day-chip ${state.prayerTracker[key] ? "active" : ""}`;
-    btn.textContent = String(day);
+    btn.innerHTML = `<span class="day-chip-g">${day}</span><span class="day-chip-h">${hijriDay}</span>`;
     btn.addEventListener("click", () => {
       state.prayerTracker[key] = !state.prayerTracker[key];
       saveJSON(STORAGE_KEYS.tracker, state.prayerTracker);
@@ -392,11 +478,14 @@ function renderData(pub, priv, times, places) {
   const prayerRoot = document.getElementById("prayer-times");
   if (prayerRoot) {
     prayerRoot.innerHTML = "";
+    prayerRoot.classList.add("time-grid");
+    const orderedNames = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
     Object.entries((times && times.times) || {})
-      .filter(([name]) => name !== "date")
+      .filter(([name]) => orderedNames.includes(name))
+      .sort((a, b) => orderedNames.indexOf(a[0]) - orderedNames.indexOf(b[0]))
       .forEach(([name, value]) => {
         const row = document.createElement("div");
-        row.className = "time-row";
+        row.className = "time-pill";
         row.innerHTML = `<span>${name.toUpperCase()}</span><strong>${value}</strong>`;
         prayerRoot.appendChild(row);
       });
@@ -429,12 +518,19 @@ async function load() {
 
   try {
     const today = new Date().toISOString().slice(0, 10);
-    const [pub, priv, times, places] = await Promise.all([
+    const [pub, priv, places] = await Promise.all([
       getJSON("/api/v1/events/public"),
       getJSON("/api/v1/events/private?userId=u1"),
-      getJSON(`/api/v1/prayer-times?date=${today}`),
       getJSON("/api/v1/prayer-places")
     ]);
+
+    let times;
+    try {
+      times = await getLivePrayerTimes(today);
+    } catch {
+      times = await getJSON(`/api/v1/prayer-times?date=${today}`);
+    }
+
     renderData(pub, priv, times, places);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
