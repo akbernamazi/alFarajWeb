@@ -430,10 +430,10 @@ async function load() {
   try {
     const today = new Date().toISOString().slice(0, 10);
     const [pub, priv, times, places] = await Promise.all([
-      getJSON("/events/public"),
-      getJSON("/events/private?userId=u1"),
-      getJSON(`/prayer-times?date=${today}`),
-      getJSON("/prayer-places")
+      getJSON("/api/v1/events/public"),
+      getJSON("/api/v1/events/private?userId=u1"),
+      getJSON(`/api/v1/prayer-times?date=${today}`),
+      getJSON("/api/v1/prayer-places")
     ]);
     renderData(pub, priv, times, places);
   } catch (err) {
