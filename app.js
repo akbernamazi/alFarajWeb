@@ -449,6 +449,12 @@ function wirePrayerLocationControls() {
   });
 }
 
+function closeSidebarDrawer() {
+  document.body.classList.remove("sidebar-open");
+  const toggleBtn = document.getElementById("sidebar-toggle");
+  toggleBtn?.setAttribute("aria-expanded", "false");
+}
+
 function wireMobileSidebar() {
   const toggleBtn = document.getElementById("sidebar-toggle");
   const closeBtn = document.getElementById("sidebar-close");
@@ -465,8 +471,7 @@ function wireMobileSidebar() {
   };
 
   const closeSidebar = () => {
-    document.body.classList.remove("sidebar-open");
-    toggleBtn.setAttribute("aria-expanded", "false");
+    closeSidebarDrawer();
   };
 
   toggleBtn.addEventListener("click", () => {
@@ -603,6 +608,63 @@ function getMarsiyaSectionById(sectionId) {
   return state.marsiyaSections.find((section) => section.id === sectionId) || null;
 }
 
+function getMarsiyaShareUrl(item) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("library", "marsiya");
+  if (item.sectionId) url.searchParams.set("section", item.sectionId);
+  url.searchParams.set("marsiya", item.id);
+  return url.toString();
+}
+
+function syncLibraryUrlState() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("library");
+  url.searchParams.delete("section");
+  url.searchParams.delete("marsiya");
+  url.searchParams.delete("surah");
+
+  if (state.libraryOpen) {
+    if (state.libraryIndex === 5) {
+      url.searchParams.set("library", "marsiya");
+      if (state.selectedMarsiyaSection) url.searchParams.set("section", state.selectedMarsiyaSection);
+      if (state.selectedMarsiya) url.searchParams.set("marsiya", state.selectedMarsiya);
+    } else if (state.libraryIndex === 0 && state.selectedSurah) {
+      url.searchParams.set("library", "quran");
+      url.searchParams.set("surah", String(state.selectedSurah));
+    }
+  }
+
+  window.history.replaceState({}, "", url.toString());
+}
+
+function applyLibraryStateFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const library = params.get("library");
+  if (library === "marsiya") {
+    const sectionId = params.get("section");
+    const marsiyaId = params.get("marsiya");
+    state.libraryOpen = true;
+    state.libraryIndex = 5;
+    state.selectedMarsiyaSection = sectionId || null;
+    if (marsiyaId && getMarsiyaById(marsiyaId)) {
+      state.selectedMarsiya = marsiyaId;
+      if (!state.selectedMarsiyaSection) {
+        state.selectedMarsiyaSection = getMarsiyaById(marsiyaId)?.sectionId || null;
+      }
+    }
+    return;
+  }
+
+  if (library === "quran") {
+    const surah = Number(params.get("surah"));
+    if (!Number.isNaN(surah) && surah >= 1 && surah <= QURAN_SURAHS.length) {
+      state.libraryOpen = true;
+      state.libraryIndex = 0;
+      state.selectedSurah = surah;
+    }
+  }
+}
+
 function createMarsiyaCrumb(label, type, value, active = false) {
   const btn = document.createElement("button");
   btn.type = "button";
@@ -622,6 +684,7 @@ function renderMarsiyaIndex() {
 
   titleEl.textContent = "Marsiya";
   metaEl.textContent = "Index";
+  setLibraryShareButton(null);
   contentEl.innerHTML = "";
 
   const nav = document.createElement("div");
@@ -661,6 +724,8 @@ function renderMarsiyaSection(sectionId) {
 
   state.selectedMarsiyaSection = section.id;
   state.selectedMarsiya = null;
+  syncLibraryUrlState();
+  setLibraryShareButton(null);
 
   titleEl.textContent = `Marsiya · ${section.title}`;
   metaEl.textContent = "Section";
@@ -689,6 +754,18 @@ function renderMarsiyaSection(sectionId) {
 
     contentEl.appendChild(row);
   });
+}
+
+function setLibraryShareButton(item) {
+  const btn = document.getElementById("library-share-btn");
+  if (!btn) return;
+  if (!item) {
+    btn.classList.add("hidden");
+    btn.removeAttribute("data-marsiya-id");
+    return;
+  }
+  btn.classList.remove("hidden");
+  btn.setAttribute("data-marsiya-id", item.id);
 }
 
 async function loadMarsiyaCatalog() {
@@ -762,6 +839,8 @@ async function renderSelectedMarsiya(itemId) {
   if (!item) return;
   state.selectedMarsiya = item.id;
   state.selectedMarsiyaSection = item.sectionId;
+  syncLibraryUrlState();
+  setLibraryShareButton(item);
   titleEl.textContent = `Marsiya · ${item.title}`;
   metaEl.textContent = `Section: ${item.sectionTitle}`;
   contentEl.innerHTML = "";
@@ -896,6 +975,7 @@ async function renderSelectedSurah(surahNo) {
   if (!titleEl || !metaEl || !contentEl) return;
 
   const surahName = QURAN_SURAHS[surahNo - 1] || `Surah ${surahNo}`;
+  setLibraryShareButton(null);
   titleEl.textContent = `Quran · ${surahNo}. ${surahName}`;
   metaEl.textContent = "Arabic · Urdu · English";
 
@@ -926,12 +1006,14 @@ async function renderSelectedSurah(surahNo) {
 function renderLibrarySection(index = 0) {
   const normalized = ((Number(index) % LIBRARY_SECTIONS.length) + LIBRARY_SECTIONS.length) % LIBRARY_SECTIONS.length;
   state.libraryIndex = normalized;
+  syncLibraryUrlState();
   const current = LIBRARY_SECTIONS[normalized];
 
   const titleEl = document.getElementById("library-title");
   const metaEl = document.getElementById("library-meta");
   const contentEl = document.getElementById("library-content");
   if (!titleEl || !metaEl || !contentEl) return;
+  if (normalized !== 5) setLibraryShareButton(null);
 
   if (normalized === 0 && state.selectedSurah) {
     const surahNo = state.selectedSurah;
@@ -994,6 +1076,7 @@ function toggleLibrarySection(index) {
     updateLibraryActiveState();
     renderQuranSurahList(document.getElementById("quran-surah-search")?.value || "");
     renderMarsiyaList();
+    syncLibraryUrlState();
     return;
   }
   state.libraryOpen = true;
@@ -1008,7 +1091,12 @@ function wireLibraryViewer() {
     const summary = item.querySelector("summary");
     const btn = item.querySelector(".library-open-btn");
     summary?.addEventListener("click", () => {
-      if (!Number.isNaN(idx)) toggleLibrarySection(idx);
+      if (!Number.isNaN(idx)) {
+        toggleLibrarySection(idx);
+        if (idx === 5 && window.matchMedia("(max-width: 640px)").matches) {
+          closeSidebarDrawer();
+        }
+      }
     });
     btn?.addEventListener("click", () => {
       if (!Number.isNaN(idx)) toggleLibrarySection(idx);
@@ -1049,6 +1137,9 @@ function wireLibraryViewer() {
     setLibraryPanelVisibility(true);
     setSurahLangControlsVisible(false);
     renderLibrarySection(5);
+    if (window.matchMedia("(max-width: 640px)").matches) {
+      closeSidebarDrawer();
+    }
   });
 
   const libraryContent = document.getElementById("library-content");
@@ -1062,6 +1153,7 @@ function wireLibraryViewer() {
     if (navType === "index") {
       state.selectedMarsiya = null;
       state.selectedMarsiyaSection = null;
+      syncLibraryUrlState();
       renderMarsiyaList();
       renderMarsiyaIndex();
       return;
@@ -1070,6 +1162,7 @@ function wireLibraryViewer() {
     if (navType === "section") {
       state.selectedMarsiya = null;
       state.selectedMarsiyaSection = navValue;
+      syncLibraryUrlState();
       renderMarsiyaList();
       renderMarsiyaSection(navValue);
       return;
@@ -1079,9 +1172,29 @@ function wireLibraryViewer() {
       state.selectedMarsiya = navValue;
       const item = getMarsiyaById(navValue);
       state.selectedMarsiyaSection = item?.sectionId || state.selectedMarsiyaSection;
+      syncLibraryUrlState();
       renderMarsiyaList();
       renderSelectedMarsiya(navValue);
     }
+  });
+
+  const libraryShareBtn = document.getElementById("library-share-btn");
+  libraryShareBtn?.addEventListener("click", () => {
+    if (!(state.libraryOpen && state.libraryIndex === 5 && state.selectedMarsiya)) return;
+    const active = getMarsiyaById(state.selectedMarsiya);
+    if (!active) return;
+    const url = getMarsiyaShareUrl(active);
+    const text = `Read this Marsiya: ${active.title}`;
+    if (navigator.share) {
+      navigator.share({ title: active.title, text, url }).catch(() => {});
+      return;
+    }
+    navigator.clipboard?.writeText(url).then(() => {
+      libraryShareBtn.textContent = "✓";
+      window.setTimeout(() => {
+        libraryShareBtn.textContent = "⤴";
+      }, 900);
+    });
   });
 
   const englishCheck = document.querySelector('input[name="surah-lang-english"]');
@@ -1103,6 +1216,7 @@ function wireLibraryViewer() {
   updateLibraryActiveState();
   renderQuranSurahList();
   renderMarsiyaList();
+  if (state.libraryOpen) renderLibrarySection(state.libraryIndex);
 }
 
 async function getJSON(path) {
@@ -1768,6 +1882,7 @@ async function load() {
   wirePrayerLocationControls();
   wireMobileSidebar();
   await loadMarsiyaCatalog();
+  applyLibraryStateFromUrl();
   wireLibraryViewer();
   syncPrayerPanelPlacement();
   mobilePrayerPanelQuery.addEventListener("change", syncPrayerPanelPlacement);
