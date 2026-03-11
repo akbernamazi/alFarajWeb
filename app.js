@@ -41,6 +41,88 @@ const I18N = {
   }
 };
 
+const LIBRARY_SECTIONS = [
+  {
+    title: "Quran",
+    meta: "Surahs and guided reading path.",
+    entries: [
+      { title: "Daily Reading", text: "Read at least 10 ayahs with meaning and reflection." },
+      { title: "Quick Start", text: "Continue from your bookmark or start from Surah Yaseen." },
+      { title: "Revision", text: "Repeat memorized surahs and track recitation consistency." }
+    ]
+  },
+  {
+    title: "Salaat",
+    meta: "Prayer guidance and daily discipline.",
+    entries: [
+      { title: "Fard Checklist", text: "Track Fajr, Dhuhr, Asr, Maghrib, and Isha completion." },
+      { title: "Preparation", text: "Ensure wudu, qiblah direction, and prayer time awareness." },
+      { title: "Taqibaat", text: "Keep short post-prayer adhkar and tasbeeh routine." }
+    ]
+  },
+  {
+    title: "Duas",
+    meta: "Daily supplications by purpose.",
+    entries: [
+      { title: "Morning", text: "Start with short duas for protection and guidance." },
+      { title: "Evening", text: "Read Dua-e-Faraj and selected nightly munajat." },
+      { title: "Need-based", text: "Use filtered duas for health, rizq, and forgiveness." }
+    ]
+  },
+  {
+    title: "Salam",
+    meta: "Salutations and ziyarat greetings.",
+    entries: [
+      { title: "Ahlul Bayt Salam", text: "Recite daily salam to the Prophet and Ahlul Bayt." },
+      { title: "Juma Routine", text: "Add special salams for Friday ziyarat moments." },
+      { title: "Travel", text: "Keep short salutations available for quick recitation." }
+    ]
+  },
+  {
+    title: "Noha",
+    meta: "Poetic lament recitation resources.",
+    entries: [
+      { title: "Majlis Prep", text: "Select nohas by occasion and audience format." },
+      { title: "Practice", text: "Use recorded clips for rhythm and pronunciation." },
+      { title: "Archive", text: "Keep favorite nohas starred for revisit." }
+    ]
+  },
+  {
+    title: "Marsiya",
+    meta: "Classical elegy section.",
+    entries: [
+      { title: "Featured Marsiya", text: "Rotate a selected marsiya for weekly reading." },
+      { title: "Context", text: "Show short background of poet and historical moment." },
+      { title: "Recitation Notes", text: "Save pauses and emphasis lines for practice." }
+    ]
+  },
+  {
+    title: "Qaside",
+    meta: "Praise poetry and devotional qaside.",
+    entries: [
+      { title: "Recommended", text: "Keep short qaside list for daily or event recitation." },
+      { title: "Learning Mode", text: "Read line-by-line transliteration and translation." },
+      { title: "Performance", text: "Bookmark and organize qaside for gatherings." }
+    ]
+  }
+];
+const COMING_SOON_LIBRARY_INDEXES = new Set([1, 2, 3, 4, 5, 6]);
+
+const QURAN_SURAHS = [
+  "Al-Fatihah", "Al-Baqarah", "Aal-Imran", "An-Nisa", "Al-Ma'idah", "Al-An'am", "Al-A'raf", "Al-Anfal", "At-Tawbah", "Yunus",
+  "Hud", "Yusuf", "Ar-Ra'd", "Ibrahim", "Al-Hijr", "An-Nahl", "Al-Isra", "Al-Kahf", "Maryam", "Ta-Ha",
+  "Al-Anbiya", "Al-Hajj", "Al-Mu'minun", "An-Nur", "Al-Furqan", "Ash-Shu'ara", "An-Naml", "Al-Qasas", "Al-Ankabut", "Ar-Rum",
+  "Luqman", "As-Sajdah", "Al-Ahzab", "Saba", "Fatir", "Ya-Sin", "As-Saffat", "Sad", "Az-Zumar", "Ghafir",
+  "Fussilat", "Ash-Shura", "Az-Zukhruf", "Ad-Dukhan", "Al-Jathiyah", "Al-Ahqaf", "Muhammad", "Al-Fath", "Al-Hujurat", "Qaf",
+  "Adh-Dhariyat", "At-Tur", "An-Najm", "Al-Qamar", "Ar-Rahman", "Al-Waqi'ah", "Al-Hadid", "Al-Mujadila", "Al-Hashr", "Al-Mumtahanah",
+  "As-Saff", "Al-Jumu'ah", "Al-Munafiqun", "At-Taghabun", "At-Talaq", "At-Tahrim", "Al-Mulk", "Al-Qalam", "Al-Haqqah", "Al-Ma'arij",
+  "Nuh", "Al-Jinn", "Al-Muzzammil", "Al-Muddaththir", "Al-Qiyamah", "Al-Insan", "Al-Mursalat", "An-Naba", "An-Nazi'at", "'Abasa",
+  "At-Takwir", "Al-Infitar", "Al-Mutaffifin", "Al-Inshiqaq", "Al-Buruj", "At-Tariq", "Al-A'la", "Al-Ghashiyah", "Al-Fajr", "Al-Balad",
+  "Ash-Shams", "Al-Layl", "Ad-Duhaa", "Ash-Sharh", "At-Tin", "Al-'Alaq", "Al-Qadr", "Al-Bayyinah", "Az-Zalzalah", "Al-'Adiyat",
+  "Al-Qari'ah", "At-Takathur", "Al-'Asr", "Al-Humazah", "Al-Fil", "Quraysh", "Al-Ma'un", "Al-Kawthar", "Al-Kafirun", "An-Nasr",
+  "Al-Masad", "Al-Ikhlas", "Al-Falaq", "An-Nas"
+];
+
 const state = {
   settings: loadJSON(STORAGE_KEYS.settings, { language: "en", fontSize: 16, apiBaseUrl: "" }),
   favorites: loadJSON(STORAGE_KEYS.favorites, []),
@@ -48,9 +130,15 @@ const state = {
   prayerTracker: loadJSON(STORAGE_KEYS.tracker, {}),
   amaalDate: loadJSON(STORAGE_KEYS.amaalDate, new Date().toISOString().slice(0, 10)),
   lastData: { pub: [], priv: [], places: [], prayerTimes: null },
-  locationSuggestions: {}
+  locationSuggestions: {},
+  libraryIndex: 0,
+  libraryOpen: false,
+  selectedSurah: null,
+  surahCache: {},
+  surahLangs: { english: true, urdu: false }
 };
 let leafletMap = null;
+let surahRequestId = 0;
 
 function t(key) {
   const lang = state.settings.language in I18N ? state.settings.language : "en";
@@ -355,6 +443,263 @@ function wireMobileSidebar() {
   mobileQuery.addEventListener("change", (e) => {
     if (!e.matches) closeSidebar();
   });
+}
+
+function setLibraryPanelVisibility(visible) {
+  const panel = document.getElementById("library-panel");
+  const mainContent = document.querySelector(".main-content");
+  if (!panel) return;
+  panel.classList.toggle("hidden", !visible);
+  if (mainContent) {
+    mainContent.classList.toggle("library-focus", visible);
+  }
+}
+
+function updateLibraryActiveState() {
+  document.querySelectorAll(".library-side-item").forEach((el) => {
+    const idx = Number(el.getAttribute("data-library-index"));
+    el.classList.toggle("active", state.libraryOpen && idx === state.libraryIndex);
+  });
+}
+
+function renderQuranSurahList(filter = "") {
+  const root = document.getElementById("quran-surah-list");
+  if (!root) return;
+  const q = String(filter || "").trim().toLowerCase();
+  root.innerHTML = "";
+  QURAN_SURAHS.forEach((name, idx) => {
+    const number = idx + 1;
+    if (q && !`${number} ${name}`.toLowerCase().includes(q)) return;
+    const btn = document.createElement("button");
+    btn.className = "quran-surah-item";
+    if (state.libraryOpen && state.libraryIndex === 0 && state.selectedSurah === number) {
+      btn.classList.add("active");
+    }
+    btn.setAttribute("type", "button");
+    btn.setAttribute("data-surah-number", String(number));
+    btn.textContent = `${number}. ${name}`;
+    root.appendChild(btn);
+  });
+}
+
+function setSurahLangControlsVisible(visible) {
+  const root = document.getElementById("surah-lang-controls");
+  if (!root) return;
+  root.classList.toggle("hidden", !visible);
+}
+
+async function fetchSurahMultilang(surahNo) {
+  const endpoint = `https://api.alquran.cloud/v1/surah/${surahNo}/editions/quran-uthmani,en.asad,ur.jalandhry`;
+  const res = await fetch(endpoint);
+  if (!res.ok) throw new Error(`Surah fetch failed (${res.status})`);
+  const payload = await res.json();
+  if (!payload?.data || !Array.isArray(payload.data)) {
+    throw new Error("Surah payload invalid");
+  }
+
+  const arabicEdition = payload.data.find((ed) => ed?.edition?.identifier === "quran-uthmani") || payload.data[0];
+  const englishEdition = payload.data.find((ed) => ed?.edition?.identifier === "en.asad") || payload.data[1];
+  const urduEdition = payload.data.find((ed) => ed?.edition?.identifier === "ur.jalandhry") || payload.data[2];
+  if (!arabicEdition?.ayahs || !englishEdition?.ayahs || !urduEdition?.ayahs) {
+    throw new Error("Surah ayahs missing");
+  }
+
+  const maxLen = Math.max(arabicEdition.ayahs.length, englishEdition.ayahs.length, urduEdition.ayahs.length);
+  const ayahs = Array.from({ length: maxLen }, (_, i) => ({
+    numberInSurah: i + 1,
+    arabic: arabicEdition.ayahs[i]?.text || "",
+    english: englishEdition.ayahs[i]?.text || "",
+    urdu: urduEdition.ayahs[i]?.text || ""
+  }));
+
+  return {
+    surahNo,
+    nameArabic: arabicEdition.name || "",
+    nameEnglish: englishEdition.englishName || QURAN_SURAHS[surahNo - 1] || `Surah ${surahNo}`,
+    ayahs
+  };
+}
+
+function createSurahAyahNode(row) {
+  const article = document.createElement("article");
+  article.className = "item surah-ayah-card";
+
+  const head = document.createElement("div");
+  head.className = "item-head";
+  const h3 = document.createElement("h3");
+  h3.textContent = `Ayah ${row.numberInSurah}`;
+  head.appendChild(h3);
+  article.appendChild(head);
+
+  const ar = document.createElement("p");
+  ar.className = "surah-arabic";
+  ar.dir = "rtl";
+  ar.textContent = row.arabic || "-";
+  article.appendChild(ar);
+
+  if (state.surahLangs.urdu) {
+    const ur = document.createElement("p");
+    ur.className = "surah-translation";
+    ur.dir = "rtl";
+    ur.textContent = `Urdu: ${row.urdu || "-"}`;
+    article.appendChild(ur);
+  }
+
+  if (state.surahLangs.english) {
+    const en = document.createElement("p");
+    en.className = "surah-translation";
+    en.textContent = `English: ${row.english || "-"}`;
+    article.appendChild(en);
+  }
+
+  return article;
+}
+
+function renderSurahContent(data) {
+  const contentEl = document.getElementById("library-content");
+  if (!contentEl) return;
+  contentEl.innerHTML = "";
+  data.ayahs.forEach((row) => contentEl.appendChild(createSurahAyahNode(row)));
+}
+
+async function renderSelectedSurah(surahNo) {
+  const titleEl = document.getElementById("library-title");
+  const metaEl = document.getElementById("library-meta");
+  const contentEl = document.getElementById("library-content");
+  if (!titleEl || !metaEl || !contentEl) return;
+
+  const surahName = QURAN_SURAHS[surahNo - 1] || `Surah ${surahNo}`;
+  titleEl.textContent = `Quran · ${surahNo}. ${surahName}`;
+  metaEl.textContent = "Arabic · Urdu · English";
+
+  const cached = state.surahCache[surahNo];
+  if (cached) {
+    renderSurahContent(cached);
+    return;
+  }
+
+  contentEl.innerHTML = "";
+  contentEl.appendChild(createItemCard("Loading", "Fetching Surah in Arabic, Urdu, and English..."));
+  const requestId = ++surahRequestId;
+
+  try {
+    const data = await fetchSurahMultilang(surahNo);
+    state.surahCache[surahNo] = data;
+    if (requestId !== surahRequestId) return;
+    if (!state.libraryOpen || state.libraryIndex !== 0 || state.selectedSurah !== surahNo) return;
+    renderSurahContent(data);
+  } catch (err) {
+    if (requestId !== surahRequestId) return;
+    const message = err instanceof Error ? err.message : "Unknown error";
+    contentEl.innerHTML = "";
+    contentEl.appendChild(createItemCard("Failed to load Surah", message));
+  }
+}
+
+function renderLibrarySection(index = 0) {
+  const normalized = ((Number(index) % LIBRARY_SECTIONS.length) + LIBRARY_SECTIONS.length) % LIBRARY_SECTIONS.length;
+  state.libraryIndex = normalized;
+  const current = LIBRARY_SECTIONS[normalized];
+
+  const titleEl = document.getElementById("library-title");
+  const metaEl = document.getElementById("library-meta");
+  const contentEl = document.getElementById("library-content");
+  if (!titleEl || !metaEl || !contentEl) return;
+
+  if (normalized === 0 && state.selectedSurah) {
+    const surahNo = state.selectedSurah;
+    updateLibraryActiveState();
+    renderQuranSurahList(document.getElementById("quran-surah-search")?.value || "");
+    setSurahLangControlsVisible(true);
+    renderSelectedSurah(surahNo);
+    return;
+  }
+
+  setSurahLangControlsVisible(false);
+  titleEl.textContent = current.title;
+  metaEl.textContent = current.meta;
+  contentEl.innerHTML = "";
+  if (COMING_SOON_LIBRARY_INDEXES.has(normalized)) {
+    const banner = document.createElement("p");
+    banner.className = "coming-soon-banner";
+    banner.textContent = "Coming Soon";
+    contentEl.appendChild(banner);
+  }
+  current.entries.forEach((entry) => {
+    contentEl.appendChild(createItemCard(entry.title, entry.text));
+  });
+
+  updateLibraryActiveState();
+  renderQuranSurahList(document.getElementById("quran-surah-search")?.value || "");
+}
+
+function toggleLibrarySection(index) {
+  const normalized = ((Number(index) % LIBRARY_SECTIONS.length) + LIBRARY_SECTIONS.length) % LIBRARY_SECTIONS.length;
+  if (state.libraryOpen && state.libraryIndex === normalized) {
+    state.libraryOpen = false;
+    setLibraryPanelVisibility(false);
+    setSurahLangControlsVisible(false);
+    state.selectedSurah = null;
+    updateLibraryActiveState();
+    renderQuranSurahList(document.getElementById("quran-surah-search")?.value || "");
+    return;
+  }
+  state.libraryOpen = true;
+  if (normalized !== 0) state.selectedSurah = null;
+  setLibraryPanelVisibility(true);
+  renderLibrarySection(normalized);
+}
+
+function wireLibraryViewer() {
+  document.querySelectorAll(".library-side-item").forEach((item) => {
+    const idx = Number(item.getAttribute("data-library-index"));
+    const summary = item.querySelector("summary");
+    const btn = item.querySelector(".library-open-btn");
+    summary?.addEventListener("click", () => {
+      if (!Number.isNaN(idx)) toggleLibrarySection(idx);
+    });
+    btn?.addEventListener("click", () => {
+      if (!Number.isNaN(idx)) toggleLibrarySection(idx);
+    });
+  });
+
+  const quranSearch = document.getElementById("quran-surah-search");
+  const quranList = document.getElementById("quran-surah-list");
+  quranSearch?.addEventListener("input", () => {
+    renderQuranSurahList(quranSearch.value);
+  });
+  quranList?.addEventListener("click", (event) => {
+    const target = event.target;
+    const btn = target && target.closest ? target.closest(".quran-surah-item") : null;
+    if (!btn) return;
+    const number = Number(btn.getAttribute("data-surah-number"));
+    if (Number.isNaN(number)) return;
+    state.libraryOpen = true;
+    state.libraryIndex = 0;
+    state.selectedSurah = number;
+    setLibraryPanelVisibility(true);
+    setSurahLangControlsVisible(true);
+    renderLibrarySection(0);
+  });
+
+  const englishCheck = document.querySelector('input[name="surah-lang-english"]');
+  const urduCheck = document.querySelector('input[name="surah-lang-urdu"]');
+  const onLangToggle = () => {
+    state.surahLangs = {
+      english: Boolean(englishCheck?.checked),
+      urdu: Boolean(urduCheck?.checked)
+    };
+    if (state.libraryOpen && state.libraryIndex === 0 && state.selectedSurah) {
+      renderSelectedSurah(state.selectedSurah);
+    }
+  };
+  englishCheck?.addEventListener("change", onLangToggle);
+  urduCheck?.addEventListener("change", onLangToggle);
+
+  setLibraryPanelVisibility(state.libraryOpen);
+  setSurahLangControlsVisible(state.libraryOpen && state.libraryIndex === 0 && Boolean(state.selectedSurah));
+  updateLibraryActiveState();
+  renderQuranSurahList();
 }
 
 async function getJSON(path) {
@@ -672,8 +1017,8 @@ function renderTodayAmaal(now = new Date()) {
     meta.textContent = `${plan.label} · ${g} · ${h} AH`;
   }
   root.innerHTML = "";
-  appendAmaalGroup(root, "Recommended", plan.recommended || []);
   appendAmaalGroup(root, "Obligatory", plan.obligatory || []);
+  appendAmaalGroup(root, "Recommended", plan.recommended || []);
 }
 
 function applyAmaalDateUI() {
@@ -996,6 +1341,9 @@ function renderData(pub, priv, times, places) {
 
 function renderAllFromState() {
   applySettingsUI();
+  setLibraryPanelVisibility(state.libraryOpen);
+  if (state.libraryOpen) renderLibrarySection(state.libraryIndex);
+  else updateLibraryActiveState();
   renderData(state.lastData.pub, state.lastData.priv, state.lastData.prayerTimes ?? { times: {} }, state.lastData.places);
 }
 
@@ -1016,6 +1364,7 @@ async function load() {
   wireAmaalDateControls();
   wirePrayerLocationControls();
   wireMobileSidebar();
+  wireLibraryViewer();
   renderTodayAmaal(parseIsoDate(state.amaalDate) || new Date());
 
   try {

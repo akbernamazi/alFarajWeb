@@ -80,9 +80,73 @@
             </article>
           </details>
 
+          <details class="side-item library-side-item" data-library-index="0">
+            <summary>Quran</summary>
+            <article class="panel">
+              <p class="meta">Select a Surah to open in right reader panel</p>
+              <input id="quran-surah-search" placeholder="Search Surah..." />
+              <div class="quran-surah-list" id="quran-surah-list"></div>
+            </article>
+          </details>
+
+          <details class="side-item library-side-item" data-library-index="1">
+            <summary>Salaat</summary>
+            <article class="panel">
+              <p class="coming-soon-banner">Coming Soon</p>
+              <p class="meta">Open in right reader panel</p>
+              <button class="library-open-btn" data-library-index="1">Open Salaat</button>
+            </article>
+          </details>
+
+          <details class="side-item library-side-item" data-library-index="2">
+            <summary>Duas</summary>
+            <article class="panel">
+              <p class="coming-soon-banner">Coming Soon</p>
+              <p class="meta">Open in right reader panel</p>
+              <button class="library-open-btn" data-library-index="2">Open Duas</button>
+            </article>
+          </details>
+
+          <details class="side-item library-side-item" data-library-index="3">
+            <summary>Salam</summary>
+            <article class="panel">
+              <p class="coming-soon-banner">Coming Soon</p>
+              <p class="meta">Open in right reader panel</p>
+              <button class="library-open-btn" data-library-index="3">Open Salam</button>
+            </article>
+          </details>
+
+          <details class="side-item library-side-item" data-library-index="4">
+            <summary>Noha</summary>
+            <article class="panel">
+              <p class="coming-soon-banner">Coming Soon</p>
+              <p class="meta">Open in right reader panel</p>
+              <button class="library-open-btn" data-library-index="4">Open Noha</button>
+            </article>
+          </details>
+
+          <details class="side-item library-side-item" data-library-index="5">
+            <summary>Marsiya</summary>
+            <article class="panel">
+              <p class="coming-soon-banner">Coming Soon</p>
+              <p class="meta">Open in right reader panel</p>
+              <button class="library-open-btn" data-library-index="5">Open Marsiya</button>
+            </article>
+          </details>
+
+          <details class="side-item library-side-item" data-library-index="6">
+            <summary>Qaside</summary>
+            <article class="panel">
+              <p class="coming-soon-banner">Coming Soon</p>
+              <p class="meta">Open in right reader panel</p>
+              <button class="library-open-btn" data-library-index="6">Open Qaside</button>
+            </article>
+          </details>
+
           <details class="side-item">
             <summary>Public Events</summary>
             <article class="panel" id="public-panel">
+              <p class="coming-soon-banner">Coming Soon</p>
               <p class="meta">Available now</p>
               <div class="list" id="public-events"></div>
             </article>
@@ -91,6 +155,7 @@
           <details class="side-item">
             <summary>Private Invites</summary>
             <article class="panel" id="private-panel">
+              <p class="coming-soon-banner">Coming Soon</p>
               <p class="meta">For user <code>u1</code></p>
               <div class="list" id="private-events"></div>
             </article>
@@ -144,6 +209,20 @@
         </aside>
 
         <div class="main-content">
+          <article class="panel hidden" id="library-panel">
+            <div class="library-head">
+              <div>
+                <h2 id="library-title">Quran</h2>
+                <p class="meta" id="library-meta">Browse core sections with quick navigation.</p>
+              </div>
+            </div>
+            <div id="surah-lang-controls" class="surah-lang-controls hidden">
+              <label><input type="checkbox" name="surah-lang-english" value="english" checked /> English</label>
+              <label><input type="checkbox" name="surah-lang-urdu" value="urdu" /> Urdu</label>
+            </div>
+            <div class="list" id="library-content"></div>
+          </article>
+
           <article class="panel" id="amaal-panel">
             <h2>Todays Amaal</h2>
             <p class="meta" id="amaal-meta">Daily recommended actions</p>
