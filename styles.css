@@ -52,6 +52,14 @@ body {
   text-decoration: none;
 }
 
+.brand-home-link:link,
+.brand-home-link:visited,
+.brand-home-link:hover,
+.brand-home-link:active {
+  color: var(--text);
+  text-decoration: none;
+}
+
 .hero {
   position: relative;
 }
@@ -771,6 +779,11 @@ body {
 
   .install-app-icon {
     display: inline-flex;
+    position: fixed;
+    right: 14px;
+    left: auto;
+    top: 14px;
+    z-index: 1201;
   }
 
   .sidebar-backdrop {
@@ -787,6 +800,10 @@ body {
   body.sidebar-open .sidebar-backdrop {
     opacity: 1;
     pointer-events: auto;
+  }
+
+  body.sidebar-open .hamburger-btn {
+    display: none;
   }
 
   .side-layout {
