@@ -25,6 +25,16 @@
     <div class="orb orb-b"></div>
     <main class="shell">
       <header class="hero">
+        <button
+          id="sidebar-toggle"
+          class="hamburger-btn"
+          type="button"
+          aria-label="Open menu"
+          aria-controls="side-nav"
+          aria-expanded="false"
+        >
+          ☰
+        </button>
         <p class="kicker">Namazi family presents</p>
         <h1>Al Faraj Community Pulse</h1>
         <p class="subtitle">Discover events and prayer context in one live dashboard.</p>
@@ -34,9 +44,14 @@
           <span>Mosque Directory</span>
         </div>
       </header>
+      <div id="sidebar-backdrop" class="sidebar-backdrop" aria-hidden="true"></div>
 
       <section class="side-layout">
-        <aside class="side-nav">
+        <aside class="side-nav" id="side-nav">
+          <div class="side-nav-head">
+            <h2>Menu</h2>
+            <button id="sidebar-close" class="sidebar-close" type="button" aria-label="Close menu">✕</button>
+          </div>
           <article class="panel" id="prayer-panel">
             <h2>Prayer Timeline</h2>
             <p class="meta">Today · Shia Jafari</p>

@@ -41,6 +41,30 @@ body {
   letter-spacing: -0.03em;
 }
 
+.hero {
+  position: relative;
+}
+
+.hamburger-btn,
+.sidebar-close,
+.sidebar-backdrop,
+.side-nav-head {
+  display: none;
+}
+
+.hamburger-btn {
+  border: 1px solid var(--stroke);
+  background: rgba(9, 18, 32, 0.86);
+  color: var(--text);
+  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  font-size: 1.2rem;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
 .kicker {
   margin: 0 0 10px;
   text-transform: uppercase;
@@ -447,15 +471,85 @@ body {
 }
 
 @media (max-width: 640px) {
+  body.sidebar-open {
+    overflow: hidden;
+  }
+
+  .hamburger-btn {
+    display: inline-flex;
+    position: absolute;
+    right: 0;
+    top: 0;
+    z-index: 1201;
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 10, 18, 0.62);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease;
+    z-index: 1199;
+  }
+
+  body.sidebar-open .sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   .side-layout {
     grid-template-columns: 1fr;
   }
 
   .side-nav {
-    position: static;
-    max-height: none;
-    overflow: visible;
-    padding-right: 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(86vw, 340px);
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: auto;
+    padding: 14px 10px 16px;
+    background: rgba(7, 14, 26, 0.97);
+    border-right: 1px solid rgba(143, 183, 255, 0.24);
+    transform: translateX(-104%);
+    transition: transform 180ms ease;
+    z-index: 1200;
+  }
+
+  body.sidebar-open .side-nav {
+    transform: translateX(0);
+  }
+
+  .side-nav-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 2px 6px 8px;
+  }
+
+  .side-nav-head h2 {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .sidebar-close {
+    display: inline-flex;
+    border: 1px solid var(--stroke);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+    border-radius: 10px;
+    width: 34px;
+    height: 34px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
   }
 
   .shell {

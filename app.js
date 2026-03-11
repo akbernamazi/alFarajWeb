@@ -317,6 +317,46 @@ function wirePrayerLocationControls() {
   });
 }
 
+function wireMobileSidebar() {
+  const toggleBtn = document.getElementById("sidebar-toggle");
+  const closeBtn = document.getElementById("sidebar-close");
+  const backdrop = document.getElementById("sidebar-backdrop");
+  const nav = document.getElementById("side-nav");
+  if (!toggleBtn || !closeBtn || !backdrop || !nav) return;
+
+  const mobileQuery = window.matchMedia("(max-width: 640px)");
+
+  const openSidebar = () => {
+    if (!mobileQuery.matches) return;
+    document.body.classList.add("sidebar-open");
+    toggleBtn.setAttribute("aria-expanded", "true");
+  };
+
+  const closeSidebar = () => {
+    document.body.classList.remove("sidebar-open");
+    toggleBtn.setAttribute("aria-expanded", "false");
+  };
+
+  toggleBtn.addEventListener("click", () => {
+    if (document.body.classList.contains("sidebar-open")) closeSidebar();
+    else openSidebar();
+  });
+  closeBtn.addEventListener("click", closeSidebar);
+  backdrop.addEventListener("click", closeSidebar);
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeSidebar();
+  });
+  nav.addEventListener("click", (event) => {
+    if (!mobileQuery.matches) return;
+    const target = event.target;
+    if (target && target.closest("summary")) return;
+    if (target && target.closest("button, a")) closeSidebar();
+  });
+  mobileQuery.addEventListener("change", (e) => {
+    if (!e.matches) closeSidebar();
+  });
+}
+
 async function getJSON(path) {
   const apiBaseUrl = getApiBaseUrl();
   if (!apiBaseUrl) {
@@ -888,6 +928,7 @@ async function load() {
   applyAmaalDateUI();
   wireAmaalDateControls();
   wirePrayerLocationControls();
+  wireMobileSidebar();
   renderTodayAmaal(parseIsoDate(state.amaalDate) || new Date());
 
   try {
