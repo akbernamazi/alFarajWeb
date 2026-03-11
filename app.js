@@ -528,6 +528,10 @@ function setLibraryPanelVisibility(visible) {
   }
 }
 
+function setMarsiyaFullscreenMode(enabled) {
+  document.body.classList.toggle("marsiya-fullscreen", Boolean(enabled));
+}
+
 function updateLibraryActiveState() {
   document.querySelectorAll(".library-side-item").forEach((el) => {
     const idx = Number(el.getAttribute("data-library-index"));
@@ -693,6 +697,7 @@ function renderMarsiyaIndex() {
   titleEl.textContent = "Marsiya";
   metaEl.textContent = "Index";
   setLibraryShareButton(null);
+  setMarsiyaFullscreenMode(false);
   contentEl.innerHTML = "";
 
   const nav = document.createElement("div");
@@ -734,6 +739,7 @@ function renderMarsiyaSection(sectionId) {
   state.selectedMarsiya = null;
   syncLibraryUrlState();
   setLibraryShareButton(null);
+  setMarsiyaFullscreenMode(false);
 
   titleEl.textContent = `Marsiya · ${section.title}`;
   metaEl.textContent = "Section";
@@ -851,6 +857,7 @@ async function renderSelectedMarsiya(itemId) {
   state.selectedMarsiyaSection = item.sectionId;
   syncLibraryUrlState();
   setLibraryShareButton({ type: "marsiya", value: item.id });
+  setMarsiyaFullscreenMode(window.matchMedia("(max-width: 900px)").matches);
   titleEl.textContent = `Marsiya · ${item.title}`;
   metaEl.textContent = `Section: ${item.sectionTitle}`;
   contentEl.innerHTML = "";
@@ -986,6 +993,7 @@ async function renderSelectedSurah(surahNo) {
 
   const surahName = QURAN_SURAHS[surahNo - 1] || `Surah ${surahNo}`;
   setLibraryShareButton({ type: "quran", value: surahNo });
+  setMarsiyaFullscreenMode(false);
   titleEl.textContent = `Quran · ${surahNo}. ${surahName}`;
   metaEl.textContent = "Arabic · Urdu · English";
 
@@ -1024,6 +1032,7 @@ function renderLibrarySection(index = 0) {
   const contentEl = document.getElementById("library-content");
   if (!titleEl || !metaEl || !contentEl) return;
   if (normalized !== 5 && normalized !== 0) setLibraryShareButton(null);
+  if (normalized !== 5) setMarsiyaFullscreenMode(false);
 
   if (normalized === 0 && state.selectedSurah) {
     const surahNo = state.selectedSurah;
@@ -1082,6 +1091,7 @@ function toggleLibrarySection(index) {
   if (state.libraryOpen && state.libraryIndex === normalized) {
     state.libraryOpen = false;
     setLibraryPanelVisibility(false);
+    setMarsiyaFullscreenMode(false);
     setSurahLangControlsVisible(false);
     state.selectedSurah = null;
     updateLibraryActiveState();
@@ -1902,6 +1912,17 @@ function registerServiceWorker() {
 function wireInstallPrompt() {
   const installBtn = document.getElementById("install-app-btn");
   if (!installBtn) return;
+  const ua = navigator.userAgent || "";
+  const isIOS =
+    /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+
+  if (isIOS && !isStandalone) {
+    installBtn.classList.remove("hidden");
+    installBtn.setAttribute("title", "Add to Home Screen");
+    installBtn.setAttribute("aria-label", "Add to Home Screen");
+  }
 
   window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();
@@ -1910,15 +1931,21 @@ function wireInstallPrompt() {
   });
 
   installBtn.addEventListener("click", async () => {
-    if (!deferredInstallPrompt) return;
-    deferredInstallPrompt.prompt();
-    try {
-      await deferredInstallPrompt.userChoice;
-    } catch {
-      // no-op
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      try {
+        await deferredInstallPrompt.userChoice;
+      } catch {
+        // no-op
+      }
+      deferredInstallPrompt = null;
+      installBtn.classList.add("hidden");
+      return;
     }
-    deferredInstallPrompt = null;
-    installBtn.classList.add("hidden");
+
+    if (isIOS && !isStandalone) {
+      window.alert("To install on iPhone: tap Safari Share, then choose 'Add to Home Screen'.");
+    }
   });
 
   window.addEventListener("appinstalled", () => {

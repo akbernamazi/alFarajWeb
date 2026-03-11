@@ -863,4 +863,19 @@ body {
     flex-direction: column;
   }
 
+  body.marsiya-fullscreen #library-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    margin: 0;
+    border-radius: 0;
+    overflow: auto;
+    padding: 14px 14px 20px;
+    background: rgba(7, 14, 26, 0.98);
+  }
+
+  body.marsiya-fullscreen .main-content {
+    gap: 0;
+  }
+
 }
