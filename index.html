@@ -41,6 +41,20 @@
             <h2>Prayer Timeline</h2>
             <p class="meta">Today · Shia Jafari</p>
             <div class="times" id="prayer-times"></div>
+            <div id="prayer-location-help" class="location-help hidden">
+              <p id="prayer-location-help-text">
+                Prayer times need your location. Allow location access or enter your city manually.
+              </p>
+              <div class="control-row location-inline">
+                <button id="request-location-btn">Allow Location</button>
+              </div>
+              <div class="control-row location-manual">
+                <input id="manual-city" list="location-suggestions" placeholder="City (e.g. Hyderabad)" />
+                <input id="manual-country" placeholder="Country (e.g. India)" />
+                <button id="manual-location-btn">Use Manual Location</button>
+              </div>
+              <datalist id="location-suggestions"></datalist>
+            </div>
           </article>
 
           <details class="side-item">

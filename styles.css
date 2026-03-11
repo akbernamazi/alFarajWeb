@@ -197,6 +197,39 @@ body {
   font-size: 0.88rem;
 }
 
+.hidden {
+  display: none !important;
+}
+
+.location-help {
+  margin-top: 10px;
+  border: 1px dashed rgba(143, 183, 255, 0.3);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.location-help p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.location-inline {
+  margin-bottom: 8px;
+}
+
+.location-manual {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.location-manual input,
+.location-manual button {
+  width: 100%;
+  min-width: 0;
+}
+
 .list,
 .times {
   display: grid;
@@ -435,5 +468,9 @@ body {
 
   .time-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .location-manual {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
