@@ -239,6 +239,42 @@ body {
   max-height: calc(100vh - 28px);
   overflow: auto;
   padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(143, 183, 255, 0.55) rgba(255, 255, 255, 0.06);
+}
+
+#library-content,
+body.marsiya-fullscreen #library-panel {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(143, 183, 255, 0.55) rgba(255, 255, 255, 0.06);
+}
+
+.side-nav::-webkit-scrollbar,
+#library-content::-webkit-scrollbar,
+body.marsiya-fullscreen #library-panel::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.side-nav::-webkit-scrollbar-track,
+#library-content::-webkit-scrollbar-track,
+body.marsiya-fullscreen #library-panel::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+}
+
+.side-nav::-webkit-scrollbar-thumb,
+#library-content::-webkit-scrollbar-thumb,
+body.marsiya-fullscreen #library-panel::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(97, 177, 255, 0.75), rgba(72, 229, 194, 0.75));
+  border-radius: 999px;
+  border: 1px solid rgba(7, 14, 26, 0.35);
+}
+
+.side-nav::-webkit-scrollbar-thumb:hover,
+#library-content::-webkit-scrollbar-thumb:hover,
+body.marsiya-fullscreen #library-panel::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(97, 177, 255, 0.95), rgba(72, 229, 194, 0.9));
 }
 
 .main-content {

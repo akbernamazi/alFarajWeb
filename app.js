@@ -184,7 +184,7 @@ const state = {
   favorites: loadJSON(STORAGE_KEYS.favorites, []),
   bookmark: loadJSON(STORAGE_KEYS.bookmark, null),
   prayerTracker: loadJSON(STORAGE_KEYS.tracker, {}),
-  amaalDate: loadJSON(STORAGE_KEYS.amaalDate, new Date().toISOString().slice(0, 10)),
+  amaalDate: loadJSON(STORAGE_KEYS.amaalDate, getLocalIsoDate()),
   lastData: { pub: [], priv: [], places: [], prayerTimes: null },
   locationSuggestions: {},
   libraryIndex: 0,
@@ -252,6 +252,13 @@ function parseIsoDate(value) {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const date = new Date(`${value}T00:00:00`);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getLocalIsoDate(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function toDdMmYyyy(dateStr) {
@@ -434,7 +441,7 @@ function wirePrayerLocationControls() {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
-          const today = new Date().toISOString().slice(0, 10);
+          const today = getLocalIsoDate();
           const times = await getLivePrayerTimesByCoords(today, position.coords.latitude, position.coords.longitude);
           renderData(state.lastData.pub, state.lastData.priv, times, state.lastData.places);
           setPrayerLocationHelpVisible(false);
@@ -458,7 +465,7 @@ function wirePrayerLocationControls() {
       return;
     }
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getLocalIsoDate();
       const times = await getPrayerTimesByCity(today, city, country);
       renderData(state.lastData.pub, state.lastData.priv, times, state.lastData.places);
       setPrayerLocationHelpVisible(false);
@@ -1667,7 +1674,7 @@ function wireAmaalDateControls() {
   });
 
   todayBtn?.addEventListener("click", () => {
-    state.amaalDate = new Date().toISOString().slice(0, 10);
+    state.amaalDate = getLocalIsoDate();
     saveJSON(STORAGE_KEYS.amaalDate, state.amaalDate);
     applyAmaalDateUI();
     renderTodayAmaal(parseIsoDate(state.amaalDate) || new Date());
@@ -2137,7 +2144,7 @@ async function load() {
   renderTodayAmaal(parseIsoDate(state.amaalDate) || new Date());
 
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getLocalIsoDate();
     const [pub, priv, places] = await Promise.all([
       getJSON("/api/v1/events/public"),
       getJSON("/api/v1/events/private?userId=u1"),
