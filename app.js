@@ -102,9 +102,27 @@ const LIBRARY_SECTIONS = [
       { title: "Learning Mode", text: "Read line-by-line transliteration and translation." },
       { title: "Performance", text: "Bookmark and organize qaside for gatherings." }
     ]
+  },
+  {
+    title: "Nahjul Balagha",
+    meta: "Sermons, letters, and sayings of Imam Ali (a.s).",
+    entries: [
+      { title: "Sermons", text: "Read topic-wise sermons with simple navigation." },
+      { title: "Letters", text: "Access selected letters for leadership and ethics." },
+      { title: "Short Wisdom", text: "Keep daily hikmah snippets for reflection." }
+    ]
+  },
+  {
+    title: "Ziyarat",
+    meta: "Ziyarat texts and occasion-based recitation.",
+    entries: [
+      { title: "Daily Ziyarat", text: "Keep short daily ziyarat options ready to read." },
+      { title: "Special Days", text: "Show recommended ziyarat for important dates." },
+      { title: "Saved List", text: "Star frequently recited ziyarat for quick access." }
+    ]
   }
 ];
-const COMING_SOON_LIBRARY_INDEXES = new Set([1, 2, 3, 4, 6]);
+const COMING_SOON_LIBRARY_INDEXES = new Set([1, 2, 3, 4, 6, 7, 8]);
 const MARSIYA_CATALOG_URL = "./content/marsiya/catalog.json";
 const DEFAULT_MARSIYA_SECTIONS = [
   {
