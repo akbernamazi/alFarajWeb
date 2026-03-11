@@ -1,4 +1,8 @@
-const API_BASE_URL = (window.AZA_API_BASE_URL || "http://localhost:4000/api/v1").replace(/\/+$/, "");
+const DEFAULT_API_BASE_URL =
+  window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? "http://localhost:4000/api/v1"
+    : "https://api.example.com/api/v1";
+const API_BASE_URL = (window.AZA_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, "");
 
 async function getJSON(path) {
   const res = await fetch(`${API_BASE_URL}${path}`);
