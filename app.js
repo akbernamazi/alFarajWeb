@@ -838,6 +838,13 @@ function setLibraryShareButton(item) {
     btn.removeAttribute("data-share-value");
     return;
   }
+  const isMobile = window.matchMedia("(max-width: 900px)").matches;
+  if (isMobile && item.type === "marsiya") {
+    btn.classList.add("hidden");
+    btn.removeAttribute("data-share-type");
+    btn.removeAttribute("data-share-value");
+    return;
+  }
   btn.classList.remove("hidden");
   btn.setAttribute("data-share-type", String(item.type || ""));
   btn.setAttribute("data-share-value", String(item.value || ""));
@@ -949,21 +956,20 @@ async function renderSelectedMarsiya(itemId) {
     nav.appendChild(createMarsiyaCrumb(item.sectionTitle, "section", item.sectionId));
     nav.appendChild(document.createTextNode("›"));
     nav.appendChild(createMarsiyaCrumb(item.title, "poem", item.id, true));
-    reader.appendChild(nav);
 
-    const actions = document.createElement("div");
-    actions.className = "marsiya-content-actions";
-    const shareInlineBtn = document.createElement("button");
-    shareInlineBtn.type = "button";
-    shareInlineBtn.className = "marsiya-pin-share";
-    shareInlineBtn.textContent = "⤴";
-    shareInlineBtn.setAttribute("aria-label", "Share Marsiya");
-    shareInlineBtn.setAttribute("title", "Share Marsiya");
-    shareInlineBtn.addEventListener("click", () => {
-      shareByType("marsiya", item.id, shareInlineBtn).catch(() => {});
-    });
-    actions.appendChild(shareInlineBtn);
-    reader.appendChild(actions);
+    if (window.matchMedia("(max-width: 900px)").matches) {
+      const shareInlineBtn = document.createElement("button");
+      shareInlineBtn.type = "button";
+      shareInlineBtn.className = "marsiya-pin-share marsiya-crumb-share";
+      shareInlineBtn.textContent = "⤴";
+      shareInlineBtn.setAttribute("aria-label", "Share Marsiya");
+      shareInlineBtn.setAttribute("title", "Share Marsiya");
+      shareInlineBtn.addEventListener("click", () => {
+        shareByType("marsiya", item.id, shareInlineBtn).catch(() => {});
+      });
+      nav.appendChild(shareInlineBtn);
+    }
+    reader.appendChild(nav);
 
     const body = document.createElement("pre");
     body.className = "marsiya-plain-text";

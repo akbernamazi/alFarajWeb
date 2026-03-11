@@ -1,11 +1,11 @@
-const CACHE_NAME = "aza-web-shell-v5";
+const CACHE_NAME = "aza-web-shell-v6";
 const SHELL_ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./manifest.webmanifest",
-  "./icons/logo.jpg",
+  "./icons/2.svg",
   "./icons/icon-192-v2.png",
   "./icons/icon-512-v2.png",
   "./icons/apple-touch-icon-v2.png",
