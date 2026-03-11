@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#09111e" />
     <title>Aza | Python Edition</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -32,6 +34,37 @@
           <span>Mosque Directory</span>
         </div>
       </header>
+
+      <section class="grid settings-grid">
+        <article class="panel">
+          <h2>Settings</h2>
+          <p class="meta">Language and reading comfort</p>
+          <div class="control-row">
+            <label for="language-select">Language</label>
+            <select id="language-select">
+              <option value="en">English</option>
+              <option value="ur">Urdu</option>
+              <option value="hi">Hindi</option>
+            </select>
+          </div>
+          <div class="control-row">
+            <label for="font-size-range">Font size</label>
+            <input id="font-size-range" type="range" min="14" max="22" step="1" />
+            <span id="font-size-value"></span>
+          </div>
+          <div class="control-row">
+            <label for="api-base-url">API Base URL</label>
+            <input id="api-base-url" placeholder="https://your-api-domain/api/v1" />
+            <button id="save-api-url">Save API URL</button>
+          </div>
+        </article>
+
+        <article class="panel">
+          <h2>Prayer Tracker</h2>
+          <p class="meta">Mark completed prayer days</p>
+          <div id="prayer-tracker" class="calendar-grid"></div>
+        </article>
+      </section>
 
       <section class="grid">
         <article class="panel" id="public-panel">
@@ -62,6 +95,23 @@
           <h2>Live Map</h2>
           <p class="meta">Public events, private invites, and prayer places</p>
           <div id="map"></div>
+        </article>
+
+        <article class="panel">
+          <h2>Favorites</h2>
+          <p class="meta">Starred for later review</p>
+          <div class="list" id="favorites"></div>
+        </article>
+
+        <article class="panel">
+          <h2>Quran Bookmark</h2>
+          <p class="meta">Save where you stopped reading</p>
+          <div class="bookmark-form">
+            <input id="bookmark-surah" placeholder="Surah (e.g. Al-Baqarah)" />
+            <input id="bookmark-ayah" placeholder="Ayah (e.g. 255)" />
+            <button id="save-bookmark">Save Bookmark</button>
+          </div>
+          <div class="list" id="bookmark-view"></div>
         </article>
       </section>
     </main>
