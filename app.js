@@ -8,6 +8,7 @@ const STORAGE_KEYS = {
   favorites: "aza.favorites.v1",
   bookmark: "aza.bookmark.v1",
   tracker: "aza.tracker.v1",
+  amaalDate: "aza.amaal.date.v1",
   apiCachePrefix: "aza.api.cache.",
   locationPrompted: "aza.location.prompted.v1",
   livePrayerCache: "aza.live.prayer.cache.v1"
@@ -45,6 +46,7 @@ const state = {
   favorites: loadJSON(STORAGE_KEYS.favorites, []),
   bookmark: loadJSON(STORAGE_KEYS.bookmark, null),
   prayerTracker: loadJSON(STORAGE_KEYS.tracker, {}),
+  amaalDate: loadJSON(STORAGE_KEYS.amaalDate, new Date().toISOString().slice(0, 10)),
   lastData: { pub: [], priv: [], places: [], prayerTimes: null }
 };
 
@@ -91,6 +93,12 @@ function loadJSON(key, fallback) {
 
 function saveJSON(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
+}
+
+function parseIsoDate(value) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function toDdMmYyyy(dateStr) {
@@ -188,12 +196,16 @@ function toggleFavorite(item) {
 function createItemCard(title, description, favoriteItem) {
   const el = document.createElement("article");
   el.className = "item";
+  const hasTitle = Boolean(title && String(title).trim());
 
   const star = favoriteItem
     ? `<button class="star-btn" data-fav-id="${favoriteItem.id}" title="Toggle favorite">${isFavorite(favoriteItem.id) ? "★" : "☆"}</button>`
     : "";
+  const head = hasTitle || star
+    ? `<div class="item-head">${hasTitle ? `<h3>${title}</h3>` : "<span></span>"}${star}</div>`
+    : "";
 
-  el.innerHTML = `<div class="item-head"><h3>${title}</h3>${star}</div><p>${description}</p>`;
+  el.innerHTML = `${head}<p>${description}</p>`;
   if (favoriteItem) {
     const btn = el.querySelector(".star-btn");
     btn?.addEventListener("click", () => {
@@ -217,6 +229,194 @@ function mountList(id, rows, makeNode) {
 
 function formatWindow(start, end) {
   return `${new Date(start).toLocaleString()} to ${new Date(end).toLocaleTimeString()}`;
+}
+
+function getIslamicDateInfo(date) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-TN-u-ca-islamic", {
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    }).formatToParts(date);
+    const day = Number(parts.find((p) => p.type === "day")?.value ?? "0");
+    const month = String(parts.find((p) => p.type === "month")?.value ?? "").toLowerCase();
+    const year = Number(parts.find((p) => p.type === "year")?.value ?? "0");
+    return { day, month, year };
+  } catch {
+    return { day: 0, month: "", year: 0 };
+  }
+}
+
+function includesAny(text, words) {
+  return words.some((w) => text.includes(w));
+}
+
+function getTodayAmaalPlan(now) {
+  const weekDay = now.getDay();
+  const hijri = getIslamicDateInfo(now);
+
+  const base = {
+    label: "Daily Amaal",
+    recommended: [
+      "Recite Salawat 100 times.",
+      "Read at least 10 ayahs of Quran with reflection.",
+      "Recite Astaghfirullah 70-100 times.",
+      "Read Dua-e-Faraj and pray for Imam al-Mahdi (ajtf)."
+    ],
+    obligatory: []
+  };
+
+  if (weekDay === 5) {
+    base.recommended.unshift("Friday: Recite Dua Kumayl and Surah al-Kahf.");
+  }
+
+  const m = hijri.month;
+  const d = hijri.day;
+
+  if (includesAny(m, ["ramadan", "rama", "ramazan"]) && [19, 21, 23].includes(d)) {
+    return {
+      label: `Laylat al-Qadr (${d} Ramadan)`,
+      recommended: [
+        "Perform Amaal-e-Shab al-Qadr (2-rakat prayer and Quran on head).",
+        "Recite Jawshan al-Kabir.",
+        "Recite Ziyarat Imam Husayn (a.s.).",
+        "Engage in prolonged istighfar, salawat, and dua until suhoor."
+      ],
+      obligatory: [
+        "Observe the wajib fast of Ramadan (if not exempt) for the daytime of this date."
+      ]
+    };
+  }
+
+  if (includesAny(m, ["ramadan", "rama", "ramazan"]) && d >= 1 && d <= 30) {
+    return {
+      label: `Ramadan ${d}`,
+      recommended: [
+        "Fast with niyyah and protect speech/eyes/heart.",
+        "Recite one juz or a fixed portion of Quran.",
+        "Read Dua Iftitah at night and Dua Abu Hamza (selected passages).",
+        "Give charity before iftar."
+      ],
+      obligatory: [
+        "Observe the wajib fast of Ramadan (if not exempt)."
+      ]
+    };
+  }
+
+  if (includesAny(m, ["shawwal"]) && d === 1) {
+    return {
+      label: "Eid al-Fitr",
+      recommended: [
+        "Offer Eid prayer.",
+        "Pay/confirm Zakat al-Fitr before Eid prayer.",
+        "Recite Takbirat and thank Allah for Ramadan completion.",
+        "Maintain family ties and charity."
+      ],
+      obligatory: [
+        "Pay Zakat al-Fitr before Eid prayer (or before Zuhr, per ruling)."
+      ]
+    };
+  }
+
+  if (includesAny(m, ["dhu al-hijjah", "zul hijjah", "dhul hijjah"]) && d === 9) {
+    return {
+      label: "Day of Arafah",
+      recommended: [
+        "Recite Dua Arafah of Imam Husayn (a.s.).",
+        "Increase tawbah and supplication before Maghrib.",
+        "Give charity and pray for all believers."
+      ],
+      obligatory: []
+    };
+  }
+
+  if (includesAny(m, ["dhu al-hijjah", "zul hijjah", "dhul hijjah"]) && d === 10) {
+    return {
+      label: "Eid al-Adha",
+      recommended: [
+        "Offer Eid prayer.",
+        "Recite Takbirat of Eid.",
+        "Revive spirit of sacrifice and service."
+      ],
+      obligatory: []
+    };
+  }
+
+  if (includesAny(m, ["muharram"]) && d === 10) {
+    return {
+      label: "Ashura (10 Muharram)",
+      recommended: [
+        "Recite Ziyarat Ashura with reflection.",
+        "Attend/host majlis and remember Karbala.",
+        "Do acts of service in the name of Imam Husayn (a.s.)."
+      ],
+      obligatory: []
+    };
+  }
+
+  if (includesAny(m, ["dhu al-hijjah", "zul hijjah", "dhul hijjah"]) && d === 18) {
+    return {
+      label: "Eid al-Ghadir",
+      recommended: [
+        "Recite Ziyarat Aminallah or Ghadir duas.",
+        "Renew allegiance (wilayah) to Imam Ali (a.s.).",
+        "Increase salawat and charity."
+      ],
+      obligatory: []
+    };
+  }
+
+  return base;
+}
+
+function appendAmaalGroup(root, heading, rows) {
+  if (!rows.length) return;
+  const groupHeading = document.createElement("h3");
+  groupHeading.className = "amaal-group-title";
+  groupHeading.textContent = heading;
+  root.appendChild(groupHeading);
+  rows.forEach((text) => root.appendChild(createItemCard("", text)));
+}
+
+function renderTodayAmaal(now = new Date()) {
+  const root = document.getElementById("today-amaal");
+  const meta = document.getElementById("amaal-meta");
+  if (!root) return;
+
+  const plan = getTodayAmaalPlan(now);
+  if (meta) {
+    const g = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(now);
+    const h = new Intl.DateTimeFormat("en-TN-u-ca-islamic", { day: "2-digit", month: "short", year: "numeric" }).format(now);
+    meta.textContent = `${plan.label} · ${g} · ${h} AH`;
+  }
+  root.innerHTML = "";
+  appendAmaalGroup(root, "Recommended", plan.recommended || []);
+  appendAmaalGroup(root, "Obligatory", plan.obligatory || []);
+}
+
+function applyAmaalDateUI() {
+  const input = document.getElementById("amaal-date");
+  if (input) input.value = state.amaalDate;
+}
+
+function wireAmaalDateControls() {
+  const input = document.getElementById("amaal-date");
+  const todayBtn = document.getElementById("amaal-date-today");
+
+  input?.addEventListener("change", () => {
+    const value = input.value;
+    if (!parseIsoDate(value)) return;
+    state.amaalDate = value;
+    saveJSON(STORAGE_KEYS.amaalDate, state.amaalDate);
+    renderTodayAmaal(parseIsoDate(state.amaalDate) || new Date());
+  });
+
+  todayBtn?.addEventListener("click", () => {
+    state.amaalDate = new Date().toISOString().slice(0, 10);
+    saveJSON(STORAGE_KEYS.amaalDate, state.amaalDate);
+    applyAmaalDateUI();
+    renderTodayAmaal(parseIsoDate(state.amaalDate) || new Date());
+  });
 }
 
 function applySettingsUI() {
@@ -495,6 +695,7 @@ function renderData(pub, priv, times, places) {
   renderFavorites();
   renderBookmark();
   renderPrayerTracker();
+  renderTodayAmaal(parseIsoDate(state.amaalDate) || new Date());
 }
 
 function renderAllFromState() {
@@ -515,6 +716,9 @@ async function load() {
   renderPrayerTracker();
   renderFavorites();
   renderBookmark();
+  applyAmaalDateUI();
+  wireAmaalDateControls();
+  renderTodayAmaal(parseIsoDate(state.amaalDate) || new Date());
 
   try {
     const today = new Date().toISOString().slice(0, 10);
@@ -541,6 +745,7 @@ async function load() {
       root.appendChild(createItemCard(t("loadFailed"), message));
     });
     renderPrayerTracker();
+    renderTodayAmaal(parseIsoDate(state.amaalDate) || new Date());
   }
 }
 

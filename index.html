@@ -25,7 +25,7 @@
     <div class="orb orb-b"></div>
     <main class="shell">
       <header class="hero">
-        <p class="kicker">Python + FastAPI</p>
+        <p class="kicker">Namazi family presents</p>
         <h1>Aza Community Pulse</h1>
         <p class="subtitle">Discover events and prayer context in one live dashboard.</p>
         <div class="chips">
@@ -37,11 +37,19 @@
 
       <section class="side-layout">
         <aside class="side-nav">
-          <article class="panel">
-            <h2>Prayer Tracker</h2>
-            <p class="meta">Mark completed prayer days</p>
-            <div id="prayer-tracker" class="calendar-grid"></div>
+          <article class="panel" id="prayer-panel">
+            <h2>Prayer Timeline</h2>
+            <p class="meta">Today · Shia Jafari</p>
+            <div class="times" id="prayer-times"></div>
           </article>
+
+          <details class="side-item">
+            <summary>Prayer Tracker</summary>
+            <article class="panel">
+              <p class="meta">Mark completed prayer days</p>
+              <div id="prayer-tracker" class="calendar-grid"></div>
+            </article>
+          </details>
 
           <details class="side-item">
             <summary>Public Events</summary>
@@ -107,33 +115,15 @@
         </aside>
 
         <div class="main-content">
-          <article class="panel" id="prayer-panel">
-            <h2>Prayer Timeline</h2>
-            <p class="meta">Today · Shia Jafari</p>
-            <div class="times" id="prayer-times"></div>
-          </article>
-
           <article class="panel" id="amaal-panel">
             <h2>Todays Amaal</h2>
-            <p class="meta">Daily recommended actions</p>
-            <div class="list" id="today-amaal">
-              <article class="item">
-                <h3>Quran Recitation</h3>
-                <p>Read at least 10 ayahs with reflection.</p>
-              </article>
-              <article class="item">
-                <h3>Istighfar</h3>
-                <p>Recite Astaghfirullah 100 times.</p>
-              </article>
-              <article class="item">
-                <h3>Salawat</h3>
-                <p>Recite Salawat on Muhammad and Aale Muhammad 100 times.</p>
-              </article>
-              <article class="item">
-                <h3>Dua</h3>
-                <p>Read Dua-e-Faraj and pray for the entire ummah.</p>
-              </article>
+            <p class="meta" id="amaal-meta">Daily recommended actions</p>
+            <div class="control-row amaal-controls">
+              <label for="amaal-date">Amaal Date</label>
+              <input id="amaal-date" type="date" />
+              <button id="amaal-date-today">Use Today</button>
             </div>
+            <div class="list" id="today-amaal"></div>
           </article>
 
           <article class="panel" id="places-panel">

@@ -133,6 +133,19 @@ body {
   margin-bottom: 10px;
 }
 
+.amaal-controls {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 6px;
+  margin-bottom: 14px;
+}
+
+.amaal-controls label {
+  grid-column: 1 / -1;
+}
+
 .control-row select,
 .control-row input,
 .control-row button,
@@ -190,6 +203,13 @@ body {
   gap: 10px;
 }
 
+.amaal-group-title {
+  margin: 8px 0 2px;
+  font-size: 0.9rem;
+  color: var(--accent);
+  font-family: "Outfit", sans-serif;
+}
+
 .item {
   border: 1px solid rgba(143, 183, 255, 0.16);
   border-radius: 12px;
@@ -239,30 +259,29 @@ body {
 
 .time-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(120px, 1fr));
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 4px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
 }
 
 .time-pill {
   display: grid;
-  gap: 6px;
+  gap: 2px;
   border: 1px solid rgba(143, 183, 255, 0.2);
-  border-radius: 12px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.03);
-  padding: 10px;
+  padding: 5px 4px;
+  text-align: center;
 }
 
 .time-pill span {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.58rem;
   letter-spacing: 0.08em;
 }
 
 .time-pill strong {
   color: var(--warn);
-  font-size: 1.05rem;
+  font-size: 0.78rem;
 }
 
 .orb {
@@ -415,6 +434,6 @@ body {
   }
 
   .time-grid {
-    grid-template-columns: repeat(5, minmax(120px, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
