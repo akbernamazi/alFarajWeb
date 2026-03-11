@@ -89,11 +89,9 @@ const LIBRARY_SECTIONS = [
   },
   {
     title: "Marsiya",
-    meta: "Classical elegy section.",
+    meta: "Wafath e Rasool e Khuda (complete section)",
     entries: [
-      { title: "Featured Marsiya", text: "Rotate a selected marsiya for weekly reading." },
-      { title: "Context", text: "Show short background of poet and historical moment." },
-      { title: "Recitation Notes", text: "Save pauses and emphasis lines for practice." }
+      { title: "Select a Marsiya", text: "Pick a Marsiya title from the left panel list to open it here." }
     ]
   },
   {
@@ -106,7 +104,33 @@ const LIBRARY_SECTIONS = [
     ]
   }
 ];
-const COMING_SOON_LIBRARY_INDEXES = new Set([1, 2, 3, 4, 5, 6]);
+const COMING_SOON_LIBRARY_INDEXES = new Set([1, 2, 3, 4, 6]);
+const MARSIYA_ITEMS = [
+  {
+    id: "wafath-aye-momino",
+    title: "Aye Momino Yasrab Me Ajab Nowha Gari Hai",
+    content:
+      "AYE MOMINO YASRAB ME AJAB NOWHA GARI HAI\nZEHRA KE LIYE DAGHE GHAME BE PIDARI HAI\nLAB KHUSHK HAI MUH ZARD HAI AANKHON ME TARI HAI\nPAIGHAMBARE KONAIN CHIRAGHE SAHARI HAI\n\nJISKA KALMA PADHTE HAIN SAB MOMINE DEENDAR\nAB AAZIME FIRDOUS HAI WO QHASA-E-GHAFFAR\nMAKKE ME MADINE ME TABAHI KE HAIN AASAAR\nAB HOTE HAIN UMMAT SE JUDA AHMED-E-MUQTAR\n\nDO CHEEZEN MAIN CHODDE HUWE JAATA HOON MAGAR HAAN\nWO EK TO MERI AAL HAI AUR AIK HAI QURAAN\nQURAAN KI HAFIZ MERI ITRAT HAI NIGAHBAAN\nYE DONO BUZURGI WO FAZILAT ME HAIN YAKSAAN"
+  },
+  {
+    id: "wafath-jab-utt-gaye",
+    title: "Jab Utt Gaye Mehboobe Khuda Daare Fannah Se",
+    content:
+      "JAB UTT GAYE MEHBOOBE KHUDA DAARE FANNAH SE\nMATAM KI SADA AANE LAGI ARZO SAMA SE\nSAR PEETTE THE AHMED-E-MURSAL KE NAWASE\nEK TEHALKA THA FATEMA ZEHRA KI BUKA SE\n\nCHILLATHI THI HAI HAI MERE BABA MERE BABA\nTANG AAYE HAIN IS RONE SE HAMSA-E-YE ZEHRA\nHYDER SE KIYA FATEMA KE RONE KA SHIKWA\nYAA DIN KO BUKA KEEJIYE YA RO-E-YE SHAB KO\n\nFARZANDON KO PHIR FATEMA ZEHRA NE BULAYA\nCHAATI SE LAGAYA KABHI SEENE SE LAGAYA\nLO PYARO KE HANGAAM-E-JUDAAI KA AB AAYA\nAB TUM SE JUDA HOTI BATOOL-E-UZRA HAI"
+  },
+  {
+    id: "wafath-zainab-jawab-do",
+    title: "Kahti Thi Roke Zainab-e-Nalaan Jawab Do",
+    content:
+      "KAHTI THI ROKE ZAINAB-E-NALAAN JAWAB DO\nQAAMOSH KYUN HO AYE MERI AMMA JAWAB DO\nAMMA JAWAB DO MERI AMMA JAWAB DO\n\nBHAI HUSSAIN ROTE HAIN UTHKAR GALE LAGAO\nGHAM ME TUMHARE PEETTE HAIN SAR INHE MANAO\nPHIR AIK BAAR BETI KO APNI SADA SUNAAO\nBETI KHADI HAI MUZTAR-O-HAIRAAN JAWAB DO\n\nAYE MERI GHAMZADA-O-DILAFGAAR AMMA JAAN\nMAHBOOB-E-KIBRIYA KI AZADAAR AMMA JAAN\nEK BAAR TOU ZABAAN SE KUCH BOLO AMMA JAAN\nAMMA JAWAB DO MERI AMMA JAWAB DO"
+  },
+  {
+    id: "wafath-roke-kehti-fatema",
+    title: "Roke Kehti Thi Fatema Zehra",
+    content:
+      "ROKE KEHTI THI FATEMA ZEHRA\nSUNLO RUDAAD YA HABEEBE QUDA\nGHAM SE JALTA HAI AB JIGAR MERA\nKYA YAHI AJR HAI RISALATH KA\n\nAAP KE BAAD MUJH PE ZULM HUWE\nMUJH KO UMMAT NE HAI DIYE SADME\nDIN PE PADTE TO RAAT HOJAATI\nACHCHA HOTA JO MAI GUZAR JAATI\n\nMERA MOHSIN KO HAAE WAWAILA\nBEHAYAON NE QATL KAR DALA\nMU KO ASHKO SE DHOTI RAHTI HUN\nAPNE MOHSIN KO ROTI RAHTI HUN"
+  }
+];
 
 const QURAN_SURAHS = [
   "Al-Fatihah", "Al-Baqarah", "Aal-Imran", "An-Nisa", "Al-Ma'idah", "Al-An'am", "Al-A'raf", "Al-Anfal", "At-Tawbah", "Yunus",
@@ -135,7 +159,8 @@ const state = {
   libraryOpen: false,
   selectedSurah: null,
   surahCache: {},
-  surahLangs: { english: true, urdu: false }
+  surahLangs: { english: true, urdu: false },
+  selectedMarsiya: null
 };
 let leafletMap = null;
 let surahRequestId = 0;
@@ -506,6 +531,40 @@ function renderQuranSurahList(filter = "") {
   });
 }
 
+function renderMarsiyaList() {
+  const root = document.getElementById("marsiya-list");
+  if (!root) return;
+  root.innerHTML = "";
+  MARSIYA_ITEMS.forEach((item) => {
+    const btn = document.createElement("button");
+    btn.className = "marsiya-item";
+    if (state.libraryOpen && state.libraryIndex === 5 && state.selectedMarsiya === item.id) {
+      btn.classList.add("active");
+    }
+    btn.type = "button";
+    btn.setAttribute("data-marsiya-id", item.id);
+    btn.textContent = item.title;
+    root.appendChild(btn);
+  });
+}
+
+function renderSelectedMarsiya(itemId) {
+  const titleEl = document.getElementById("library-title");
+  const metaEl = document.getElementById("library-meta");
+  const contentEl = document.getElementById("library-content");
+  if (!titleEl || !metaEl || !contentEl) return;
+
+  const item = MARSIYA_ITEMS.find((x) => x.id === itemId);
+  if (!item) return;
+  titleEl.textContent = `Marsiya · ${item.title}`;
+  metaEl.textContent = "Section: Wafath e Rasool e Khuda";
+  contentEl.innerHTML = "";
+  const card = createItemCard(item.title, item.content);
+  const text = card.querySelector("p");
+  if (text) text.style.whiteSpace = "pre-line";
+  contentEl.appendChild(card);
+}
+
 function setSurahLangControlsVisible(visible) {
   const root = document.getElementById("surah-lang-controls");
   if (!root) return;
@@ -639,6 +698,14 @@ function renderLibrarySection(index = 0) {
     return;
   }
 
+  if (normalized === 5 && state.selectedMarsiya) {
+    updateLibraryActiveState();
+    renderQuranSurahList(document.getElementById("quran-surah-search")?.value || "");
+    renderMarsiyaList();
+    renderSelectedMarsiya(state.selectedMarsiya);
+    return;
+  }
+
   setSurahLangControlsVisible(false);
   titleEl.textContent = current.title;
   metaEl.textContent = current.meta;
@@ -655,6 +722,7 @@ function renderLibrarySection(index = 0) {
 
   updateLibraryActiveState();
   renderQuranSurahList(document.getElementById("quran-surah-search")?.value || "");
+  renderMarsiyaList();
 }
 
 function toggleLibrarySection(index) {
@@ -664,12 +732,15 @@ function toggleLibrarySection(index) {
     setLibraryPanelVisibility(false);
     setSurahLangControlsVisible(false);
     state.selectedSurah = null;
+    state.selectedMarsiya = null;
     updateLibraryActiveState();
     renderQuranSurahList(document.getElementById("quran-surah-search")?.value || "");
+    renderMarsiyaList();
     return;
   }
   state.libraryOpen = true;
   if (normalized !== 0) state.selectedSurah = null;
+  if (normalized !== 5) state.selectedMarsiya = null;
   setLibraryPanelVisibility(true);
   renderLibrarySection(normalized);
 }
@@ -706,6 +777,21 @@ function wireLibraryViewer() {
     renderLibrarySection(0);
   });
 
+  const marsiyaList = document.getElementById("marsiya-list");
+  marsiyaList?.addEventListener("click", (event) => {
+    const target = event.target;
+    const btn = target && target.closest ? target.closest(".marsiya-item") : null;
+    if (!btn) return;
+    const itemId = btn.getAttribute("data-marsiya-id");
+    if (!itemId) return;
+    state.libraryOpen = true;
+    state.libraryIndex = 5;
+    state.selectedMarsiya = itemId;
+    setLibraryPanelVisibility(true);
+    setSurahLangControlsVisible(false);
+    renderLibrarySection(5);
+  });
+
   const englishCheck = document.querySelector('input[name="surah-lang-english"]');
   const urduCheck = document.querySelector('input[name="surah-lang-urdu"]');
   const onLangToggle = () => {
@@ -724,6 +810,7 @@ function wireLibraryViewer() {
   setSurahLangControlsVisible(state.libraryOpen && state.libraryIndex === 0 && Boolean(state.selectedSurah));
   updateLibraryActiveState();
   renderQuranSurahList();
+  renderMarsiyaList();
 }
 
 async function getJSON(path) {
