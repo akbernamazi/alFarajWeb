@@ -1,6 +1,6 @@
-# Aza Web App
+# Al Faraj Web App
 
-Static frontend app that consumes the Aza API service.
+Static frontend app that consumes the Al Faraj API service.
 
 ## GitHub Pages
 
