@@ -182,6 +182,7 @@ const state = {
 let leafletMap = null;
 let surahRequestId = 0;
 let marsiyaRequestId = 0;
+let deferredInstallPrompt = null;
 const mobilePrayerPanelQuery = window.matchMedia("(max-width: 640px)");
 
 function t(key) {
@@ -1898,11 +1899,40 @@ function registerServiceWorker() {
   navigator.serviceWorker.register("./sw.js").catch(() => {});
 }
 
+function wireInstallPrompt() {
+  const installBtn = document.getElementById("install-app-btn");
+  if (!installBtn) return;
+
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    installBtn.classList.remove("hidden");
+  });
+
+  installBtn.addEventListener("click", async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    try {
+      await deferredInstallPrompt.userChoice;
+    } catch {
+      // no-op
+    }
+    deferredInstallPrompt = null;
+    installBtn.classList.add("hidden");
+  });
+
+  window.addEventListener("appinstalled", () => {
+    deferredInstallPrompt = null;
+    installBtn.classList.add("hidden");
+  });
+}
+
 async function load() {
   applySettingsUI();
   wireSettings();
   wireBookmark();
   registerServiceWorker();
+  wireInstallPrompt();
   renderPrayerTracker();
   renderFavorites();
   renderBookmark();

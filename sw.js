@@ -1,5 +1,16 @@
-const CACHE_NAME = "aza-web-shell-v2";
-const SHELL_ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./.nojekyll"];
+const CACHE_NAME = "aza-web-shell-v3";
+const SHELL_ASSETS = [
+  "./",
+  "./index.html",
+  "./styles.css",
+  "./app.js",
+  "./manifest.webmanifest",
+  "./icons/alfaraj-icon.svg",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
+  "./icons/apple-touch-icon.png",
+  "./.nojekyll"
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -22,14 +33,46 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+  const isNavigation = event.request.mode === "navigate";
+  const isStaticAsset = SHELL_ASSETS.some((asset) => url.pathname.endsWith(asset.replace("./", "/")));
+  const isApiLike = /\.(json|txt)$/.test(url.pathname) || url.pathname.includes("/api/");
+
+  if (isNavigation) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match("./index.html"))
+    );
+    return;
+  }
+
+  if (isStaticAsset) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  if (isApiLike) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
 
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        return response;
-      })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match("./index.html")))
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });

@@ -73,6 +73,8 @@ body {
 }
 
 .hamburger-btn,
+.install-app-icon,
+.install-app-btn,
 .sidebar-close,
 .sidebar-backdrop,
 .side-nav-head {
@@ -90,6 +92,23 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+}
+
+.install-app-icon {
+  border: 1px solid var(--stroke);
+  background: rgba(9, 18, 32, 0.86);
+  color: var(--text);
+  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  font-size: 0.95rem;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: static;
+  margin-left: 6px;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
 }
 
 .kicker {
@@ -726,7 +745,7 @@ body {
   opacity: 0.86;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   body.sidebar-open {
     overflow: hidden;
   }
@@ -745,6 +764,10 @@ body {
     border-color: rgba(143, 183, 255, 0.35);
     box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
     backdrop-filter: blur(4px);
+  }
+
+  .install-app-icon {
+    display: inline-flex;
   }
 
   .sidebar-backdrop {
