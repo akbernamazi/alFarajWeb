@@ -1,4 +1,4 @@
-const CACHE_NAME = "aza-web-shell-v1";
+const CACHE_NAME = "aza-web-shell-v2";
 const SHELL_ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./.nojekyll"];
 
 self.addEventListener("install", (event) => {

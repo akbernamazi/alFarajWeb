@@ -426,6 +426,56 @@ function formatWindow(start, end) {
   return `${new Date(start).toLocaleString()} to ${new Date(end).toLocaleTimeString()}`;
 }
 
+function getIslamicDateFallback(date) {
+  const gYear = date.getFullYear();
+  const gMonth = date.getMonth() + 1;
+  const gDay = date.getDate();
+
+  const a = Math.floor((14 - gMonth) / 12);
+  const y = gYear + 4800 - a;
+  const m = gMonth + 12 * a - 3;
+  const jdn =
+    gDay +
+    Math.floor((153 * m + 2) / 5) +
+    365 * y +
+    Math.floor(y / 4) -
+    Math.floor(y / 100) +
+    Math.floor(y / 400) -
+    32045;
+
+  const l0 = jdn - 1948440 + 10632;
+  const n = Math.floor((l0 - 1) / 10631);
+  let l = l0 - 10631 * n + 354;
+  const j =
+    Math.floor((10985 - l) / 5316) * Math.floor((50 * l) / 17719) +
+    Math.floor(l / 5670) * Math.floor((43 * l) / 15238);
+  l =
+    l -
+    Math.floor((30 - j) / 15) * Math.floor((17719 * j) / 50) -
+    Math.floor(j / 16) * Math.floor((15238 * j) / 43) +
+    29;
+
+  const monthIndex = Math.floor((24 * l) / 709) - 1;
+  const day = l - Math.floor((709 * (monthIndex + 1)) / 24);
+  const year = 30 * n + j - 30;
+  const monthNames = [
+    "muharram",
+    "safar",
+    "rabi al-awwal",
+    "rabi al-thani",
+    "jumada al-awwal",
+    "jumada al-thani",
+    "rajab",
+    "shaban",
+    "ramadan",
+    "shawwal",
+    "dhu al-qadah",
+    "dhu al-hijjah"
+  ];
+  const month = monthNames[Math.max(0, Math.min(monthNames.length - 1, monthIndex))];
+  return { day, month, year };
+}
+
 function getIslamicDateInfo(date) {
   try {
     const parts = new Intl.DateTimeFormat("en-TN-u-ca-islamic", {
@@ -436,9 +486,23 @@ function getIslamicDateInfo(date) {
     const day = Number(parts.find((p) => p.type === "day")?.value ?? "0");
     const month = String(parts.find((p) => p.type === "month")?.value ?? "").toLowerCase();
     const year = Number(parts.find((p) => p.type === "year")?.value ?? "0");
-    return { day, month, year };
+    if (day > 0 && month) return { day, month, year };
+    return getIslamicDateFallback(date);
   } catch {
-    return { day: 0, month: "", year: 0 };
+    return getIslamicDateFallback(date);
+  }
+}
+
+function formatIslamicDateLabel(date) {
+  try {
+    return new Intl.DateTimeFormat("en-TN-u-ca-islamic", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    }).format(date);
+  } catch {
+    const h = getIslamicDateInfo(date);
+    return `${String(h.day).padStart(2, "0")} ${h.month} ${h.year}`;
   }
 }
 
@@ -581,7 +645,7 @@ function renderTodayAmaal(now = new Date()) {
   const plan = getTodayAmaalPlan(now);
   if (meta) {
     const g = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(now);
-    const h = new Intl.DateTimeFormat("en-TN-u-ca-islamic", { day: "2-digit", month: "short", year: "numeric" }).format(now);
+    const h = formatIslamicDateLabel(now);
     meta.textContent = `${plan.label} · ${g} · ${h} AH`;
   }
   root.innerHTML = "";
