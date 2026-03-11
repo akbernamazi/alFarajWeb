@@ -616,6 +616,13 @@ function getMarsiyaShareUrl(item) {
   return url.toString();
 }
 
+function getQuranSurahShareUrl(surahNo) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("library", "quran");
+  url.searchParams.set("surah", String(surahNo));
+  return url.toString();
+}
+
 function syncLibraryUrlState() {
   const url = new URL(window.location.href);
   url.searchParams.delete("library");
@@ -761,11 +768,13 @@ function setLibraryShareButton(item) {
   if (!btn) return;
   if (!item) {
     btn.classList.add("hidden");
-    btn.removeAttribute("data-marsiya-id");
+    btn.removeAttribute("data-share-type");
+    btn.removeAttribute("data-share-value");
     return;
   }
   btn.classList.remove("hidden");
-  btn.setAttribute("data-marsiya-id", item.id);
+  btn.setAttribute("data-share-type", String(item.type || ""));
+  btn.setAttribute("data-share-value", String(item.value || ""));
 }
 
 async function loadMarsiyaCatalog() {
@@ -840,7 +849,7 @@ async function renderSelectedMarsiya(itemId) {
   state.selectedMarsiya = item.id;
   state.selectedMarsiyaSection = item.sectionId;
   syncLibraryUrlState();
-  setLibraryShareButton(item);
+  setLibraryShareButton({ type: "marsiya", value: item.id });
   titleEl.textContent = `Marsiya · ${item.title}`;
   metaEl.textContent = `Section: ${item.sectionTitle}`;
   contentEl.innerHTML = "";
@@ -975,7 +984,7 @@ async function renderSelectedSurah(surahNo) {
   if (!titleEl || !metaEl || !contentEl) return;
 
   const surahName = QURAN_SURAHS[surahNo - 1] || `Surah ${surahNo}`;
-  setLibraryShareButton(null);
+  setLibraryShareButton({ type: "quran", value: surahNo });
   titleEl.textContent = `Quran · ${surahNo}. ${surahName}`;
   metaEl.textContent = "Arabic · Urdu · English";
 
@@ -1013,7 +1022,7 @@ function renderLibrarySection(index = 0) {
   const metaEl = document.getElementById("library-meta");
   const contentEl = document.getElementById("library-content");
   if (!titleEl || !metaEl || !contentEl) return;
-  if (normalized !== 5) setLibraryShareButton(null);
+  if (normalized !== 5 && normalized !== 0) setLibraryShareButton(null);
 
   if (normalized === 0 && state.selectedSurah) {
     const surahNo = state.selectedSurah;
@@ -1044,6 +1053,7 @@ function renderLibrarySection(index = 0) {
   titleEl.textContent = current.title;
   metaEl.textContent = current.meta;
   contentEl.innerHTML = "";
+  if (normalized === 0) setLibraryShareButton(null);
   if (normalized === 5) {
     renderMarsiyaIndex();
     updateLibraryActiveState();
@@ -1180,13 +1190,32 @@ function wireLibraryViewer() {
 
   const libraryShareBtn = document.getElementById("library-share-btn");
   libraryShareBtn?.addEventListener("click", () => {
-    if (!(state.libraryOpen && state.libraryIndex === 5 && state.selectedMarsiya)) return;
-    const active = getMarsiyaById(state.selectedMarsiya);
-    if (!active) return;
-    const url = getMarsiyaShareUrl(active);
-    const text = `Read this Marsiya: ${active.title}`;
+    if (!state.libraryOpen) return;
+    const shareType = libraryShareBtn.getAttribute("data-share-type");
+    const shareValue = libraryShareBtn.getAttribute("data-share-value");
+    let url = "";
+    let text = "";
+    let title = "";
+
+    if (shareType === "marsiya") {
+      const active = shareValue ? getMarsiyaById(shareValue) : null;
+      if (!active) return;
+      url = getMarsiyaShareUrl(active);
+      title = active.title;
+      text = `Read this Marsiya: ${active.title}`;
+    } else if (shareType === "quran") {
+      const surahNo = Number(shareValue);
+      if (Number.isNaN(surahNo) || surahNo < 1 || surahNo > QURAN_SURAHS.length) return;
+      const surahName = QURAN_SURAHS[surahNo - 1] || `Surah ${surahNo}`;
+      title = `Quran · ${surahNo}. ${surahName}`;
+      text = `Read ${title} on Al Faraj`;
+      url = getQuranSurahShareUrl(surahNo);
+    } else {
+      return;
+    }
+
     if (navigator.share) {
-      navigator.share({ title: active.title, text, url }).catch(() => {});
+      navigator.share({ title, text, url }).catch(() => {});
       return;
     }
     navigator.clipboard?.writeText(url).then(() => {
