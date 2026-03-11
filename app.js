@@ -173,7 +173,7 @@ const state = {
   libraryOpen: false,
   selectedSurah: null,
   surahCache: {},
-  surahLangs: { english: true, urdu: false },
+  surahLangs: { english: false, urdu: false },
   selectedMarsiya: null,
   selectedMarsiyaSection: null,
   marsiyaCache: {},
