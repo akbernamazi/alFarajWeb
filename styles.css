@@ -44,7 +44,19 @@ body {
 .brand-row {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 10px;
+}
+
+.brand-mark {
+  width: clamp(34px, 6vw, 46px);
+  height: clamp(34px, 6vw, 46px);
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.brand-mark-photo {
+  mix-blend-mode: multiply;
+  filter: saturate(1.05) contrast(1.06);
 }
 
 .brand-home-link {
@@ -449,6 +461,12 @@ body {
 .marsiya-crumb.active {
   border-color: rgba(72, 229, 194, 0.55);
   background: rgba(72, 229, 194, 0.15);
+}
+
+.marsiya-content-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 8px;
 }
 
 .marsiya-index-item {

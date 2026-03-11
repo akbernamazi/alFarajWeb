@@ -1,18 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg width="500" height="500" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f2a52" />
-      <stop offset="100%" stop-color="#0a1322" />
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#2b6cb0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0a1931;stop-opacity:1" />
     </linearGradient>
   </defs>
 
-  <rect x="0" y="0" width="512" height="512" rx="108" fill="url(#bg)" />
-
-  <circle cx="246" cy="256" r="156" fill="#49e5c2" />
-  <circle cx="294" cy="238" r="148" fill="#0a1322" />
-
-  <path
-    d="M352 126l20 42 46 7-33 31 8 44-41-22-41 22 8-44-33-31 46-7z"
-    fill="#f7fbff"
-  />
+  <path d="M300,250 L300,50 Q325,30 350,50 L350,250 Z" fill="url(#blueGrad)" />
+  <circle cx="325" cy="40" r="15" fill="url(#blueGrad)" />
+  
+  <path d="M150,450 Q100,400 150,300 Q200,200 300,350 Q400,450 450,300 Q400,200 350,250" 
+        stroke="url(#blueGrad)" stroke-width="15" fill="none" stroke-linecap="round"/>
+  
+  <path d="M250,350 Q325,250 400,350 L250,350" fill="url(#blueGrad)" />
 </svg>

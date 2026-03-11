@@ -632,6 +632,59 @@ function getQuranSurahShareUrl(surahNo) {
   return url.toString();
 }
 
+function resolveSharePayload(shareType, shareValue) {
+  if (shareType === "marsiya") {
+    const active = shareValue ? getMarsiyaById(shareValue) : null;
+    if (!active) return null;
+    return {
+      title: active.title,
+      text: `Read this Marsiya: ${active.title}`,
+      url: getMarsiyaShareUrl(active)
+    };
+  }
+
+  if (shareType === "quran") {
+    const surahNo = Number(shareValue);
+    if (Number.isNaN(surahNo) || surahNo < 1 || surahNo > QURAN_SURAHS.length) return null;
+    const surahName = QURAN_SURAHS[surahNo - 1] || `Surah ${surahNo}`;
+    const title = `Quran · ${surahNo}. ${surahName}`;
+    return {
+      title,
+      text: `Read ${title} on Al Faraj`,
+      url: getQuranSurahShareUrl(surahNo)
+    };
+  }
+
+  return null;
+}
+
+async function shareByType(shareType, shareValue, feedbackBtn) {
+  const payload = resolveSharePayload(shareType, shareValue);
+  if (!payload) return;
+
+  if (navigator.share) {
+    navigator.share(payload).catch(() => {});
+    return;
+  }
+
+  let copied = false;
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(payload.url);
+      copied = true;
+    } catch {
+      copied = false;
+    }
+  }
+  if (!copied) return;
+  if (!feedbackBtn) return;
+  const original = feedbackBtn.textContent;
+  feedbackBtn.textContent = "✓";
+  window.setTimeout(() => {
+    feedbackBtn.textContent = original || "⤴";
+  }, 900);
+}
+
 function syncLibraryUrlState() {
   const url = new URL(window.location.href);
   url.searchParams.delete("library");
@@ -897,6 +950,20 @@ async function renderSelectedMarsiya(itemId) {
     nav.appendChild(document.createTextNode("›"));
     nav.appendChild(createMarsiyaCrumb(item.title, "poem", item.id, true));
     reader.appendChild(nav);
+
+    const actions = document.createElement("div");
+    actions.className = "marsiya-content-actions";
+    const shareInlineBtn = document.createElement("button");
+    shareInlineBtn.type = "button";
+    shareInlineBtn.className = "marsiya-pin-share";
+    shareInlineBtn.textContent = "⤴";
+    shareInlineBtn.setAttribute("aria-label", "Share Marsiya");
+    shareInlineBtn.setAttribute("title", "Share Marsiya");
+    shareInlineBtn.addEventListener("click", () => {
+      shareByType("marsiya", item.id, shareInlineBtn).catch(() => {});
+    });
+    actions.appendChild(shareInlineBtn);
+    reader.appendChild(actions);
 
     const body = document.createElement("pre");
     body.className = "marsiya-plain-text";
@@ -1214,37 +1281,7 @@ function wireLibraryViewer() {
     if (!state.libraryOpen) return;
     const shareType = libraryShareBtn.getAttribute("data-share-type");
     const shareValue = libraryShareBtn.getAttribute("data-share-value");
-    let url = "";
-    let text = "";
-    let title = "";
-
-    if (shareType === "marsiya") {
-      const active = shareValue ? getMarsiyaById(shareValue) : null;
-      if (!active) return;
-      url = getMarsiyaShareUrl(active);
-      title = active.title;
-      text = `Read this Marsiya: ${active.title}`;
-    } else if (shareType === "quran") {
-      const surahNo = Number(shareValue);
-      if (Number.isNaN(surahNo) || surahNo < 1 || surahNo > QURAN_SURAHS.length) return;
-      const surahName = QURAN_SURAHS[surahNo - 1] || `Surah ${surahNo}`;
-      title = `Quran · ${surahNo}. ${surahName}`;
-      text = `Read ${title} on Al Faraj`;
-      url = getQuranSurahShareUrl(surahNo);
-    } else {
-      return;
-    }
-
-    if (navigator.share) {
-      navigator.share({ title, text, url }).catch(() => {});
-      return;
-    }
-    navigator.clipboard?.writeText(url).then(() => {
-      libraryShareBtn.textContent = "✓";
-      window.setTimeout(() => {
-        libraryShareBtn.textContent = "⤴";
-      }, 900);
-    });
+    shareByType(shareType, shareValue, libraryShareBtn).catch(() => {});
   });
 
   const englishCheck = document.querySelector('input[name="surah-lang-english"]');
