@@ -476,6 +476,33 @@ function getIslamicDateFallback(date) {
   return { day, month, year };
 }
 
+function normalizeIslamicMonth(value) {
+  const raw = String(value || "").toLowerCase().trim().replace(/\s+/g, " ");
+  const monthAliases = {
+    muharram: "muharram",
+    safar: "safar",
+    "rabi al-awwal": "rabi al-awwal",
+    "rabi i": "rabi al-awwal",
+    "rabi al-thani": "rabi al-thani",
+    "rabi ii": "rabi al-thani",
+    "jumada al-awwal": "jumada al-awwal",
+    "jumada i": "jumada al-awwal",
+    "jumada al-thani": "jumada al-thani",
+    "jumada ii": "jumada al-thani",
+    rajab: "rajab",
+    shaban: "shaban",
+    shaaban: "shaban",
+    ramadan: "ramadan",
+    ramazan: "ramadan",
+    shawwal: "shawwal",
+    "dhu al-qadah": "dhu al-qadah",
+    "dhu al-hijjah": "dhu al-hijjah",
+    "zul hijjah": "dhu al-hijjah",
+    "dhul hijjah": "dhu al-hijjah"
+  };
+  return monthAliases[raw] || "";
+}
+
 function getIslamicDateInfo(date) {
   try {
     const parts = new Intl.DateTimeFormat("en-TN-u-ca-islamic", {
@@ -484,9 +511,9 @@ function getIslamicDateInfo(date) {
       year: "numeric"
     }).formatToParts(date);
     const day = Number(parts.find((p) => p.type === "day")?.value ?? "0");
-    const month = String(parts.find((p) => p.type === "month")?.value ?? "").toLowerCase();
+    const month = normalizeIslamicMonth(parts.find((p) => p.type === "month")?.value ?? "");
     const year = Number(parts.find((p) => p.type === "year")?.value ?? "0");
-    if (day > 0 && month) return { day, month, year };
+    if (day > 0 && day <= 30 && month && year >= 1300 && year <= 1700) return { day, month, year };
     return getIslamicDateFallback(date);
   } catch {
     return getIslamicDateFallback(date);
@@ -494,16 +521,12 @@ function getIslamicDateInfo(date) {
 }
 
 function formatIslamicDateLabel(date) {
-  try {
-    return new Intl.DateTimeFormat("en-TN-u-ca-islamic", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric"
-    }).format(date);
-  } catch {
-    const h = getIslamicDateInfo(date);
-    return `${String(h.day).padStart(2, "0")} ${h.month} ${h.year}`;
-  }
+  const h = getIslamicDateInfo(date);
+  const monthLabel = h.month
+    .split(" ")
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
+  return `${String(h.day).padStart(2, "0")} ${monthLabel} ${h.year}`;
 }
 
 function includesAny(text, words) {
