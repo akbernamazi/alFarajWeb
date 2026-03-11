@@ -1,7 +1,7 @@
 const DEFAULT_API_BASE_URL =
   window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
     ? "http://localhost:4000/api/v1"
-    : "";
+    : "https://akbernamazi.github.io/alFarajService/api/v1";
 
 const STORAGE_KEYS = {
   settings: "aza.settings.v1",
@@ -56,6 +56,23 @@ function getApiBaseUrl() {
   return configured.replace(/\/+$/, "");
 }
 
+function resolveApiUrl(path) {
+  const apiBaseUrl = getApiBaseUrl();
+  const raw = `${apiBaseUrl}${path}`;
+  if (!apiBaseUrl.includes("github.io")) return raw;
+
+  const url = new URL(raw);
+  let cleanPath = url.pathname;
+  if (cleanPath.endsWith("/events/private")) cleanPath = `${cleanPath}.json`;
+  if (cleanPath.endsWith("/prayer-times")) cleanPath = `${cleanPath}.json`;
+  if (cleanPath.endsWith("/events/public")) cleanPath = `${cleanPath}.json`;
+  if (cleanPath.endsWith("/prayer-places")) cleanPath = `${cleanPath}.json`;
+  if (cleanPath.endsWith("/health")) cleanPath = `${cleanPath}.json`;
+  url.pathname = cleanPath;
+  url.search = "";
+  return url.toString();
+}
+
 function loadJSON(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -75,8 +92,9 @@ async function getJSON(path) {
     throw new Error("API URL is not configured. Open Settings and set API Base URL.");
   }
   const cacheKey = `${STORAGE_KEYS.apiCachePrefix}${path}`;
+  const requestUrl = resolveApiUrl(path);
   try {
-    const res = await fetch(`${apiBaseUrl}${path}`);
+    const res = await fetch(requestUrl);
     if (!res.ok) throw new Error(`Request failed: ${res.status}`);
     const json = await res.json();
     saveJSON(cacheKey, json);
@@ -374,7 +392,7 @@ function renderData(pub, priv, times, places) {
   const prayerRoot = document.getElementById("prayer-times");
   if (prayerRoot) {
     prayerRoot.innerHTML = "";
-    Object.entries(times.times)
+    Object.entries((times && times.times) || {})
       .filter(([name]) => name !== "date")
       .forEach(([name, value]) => {
         const row = document.createElement("div");
@@ -405,6 +423,9 @@ async function load() {
   wireSettings();
   wireBookmark();
   registerServiceWorker();
+  renderPrayerTracker();
+  renderFavorites();
+  renderBookmark();
 
   try {
     const today = new Date().toISOString().slice(0, 10);
@@ -423,6 +444,7 @@ async function load() {
       root.innerHTML = "";
       root.appendChild(createItemCard(t("loadFailed"), message));
     });
+    renderPrayerTracker();
   }
 }
 
