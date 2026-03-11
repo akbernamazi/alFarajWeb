@@ -110,6 +110,72 @@ body {
   font-weight: 700;
 }
 
+.install-nudge {
+  position: fixed;
+  right: 14px;
+  top: 62px;
+  width: min(320px, calc(100vw - 28px));
+  z-index: 1302;
+  border: 1px solid rgba(143, 183, 255, 0.35);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(4, 13, 27, 0.95);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+}
+
+.install-nudge h3 {
+  margin: 0 0 6px;
+  font-family: "Outfit", sans-serif;
+  font-size: 1rem;
+}
+
+.install-nudge p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.install-nudge-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.install-nudge-install,
+.install-nudge-later {
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-family: "Space Grotesk", sans-serif;
+  cursor: pointer;
+}
+
+.install-nudge-install {
+  background: rgba(72, 229, 194, 0.16);
+  color: var(--text);
+  border-color: rgba(72, 229, 194, 0.45);
+}
+
+.install-nudge-later {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+}
+
+.install-nudge-close {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
 .kicker {
   margin: 0 0 10px;
   text-transform: uppercase;
@@ -467,6 +533,23 @@ body {
 
 .hidden {
   display: none !important;
+}
+
+body.marsiya-content-only #library-panel {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  backdrop-filter: none;
+  animation: none;
+}
+
+body.marsiya-content-only #library-panel .library-head,
+body.marsiya-content-only #library-panel #surah-lang-controls {
+  display: none !important;
+}
+
+body.marsiya-content-only #library-panel #library-content {
+  margin-top: 0;
 }
 
 .location-help {
@@ -881,6 +964,10 @@ body {
 
   .library-head {
     flex-direction: column;
+  }
+
+  body.marsiya-content-only #library-panel {
+    margin: 0;
   }
 
   body.marsiya-fullscreen #library-panel {

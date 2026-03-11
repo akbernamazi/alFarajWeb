@@ -532,6 +532,10 @@ function setMarsiyaFullscreenMode(enabled) {
   document.body.classList.toggle("marsiya-fullscreen", Boolean(enabled));
 }
 
+function setMarsiyaContentOnlyMode(enabled) {
+  document.body.classList.toggle("marsiya-content-only", Boolean(enabled));
+}
+
 function updateLibraryActiveState() {
   document.querySelectorAll(".library-side-item").forEach((el) => {
     const idx = Number(el.getAttribute("data-library-index"));
@@ -698,6 +702,7 @@ function renderMarsiyaIndex() {
   metaEl.textContent = "Index";
   setLibraryShareButton(null);
   setMarsiyaFullscreenMode(false);
+  setMarsiyaContentOnlyMode(false);
   contentEl.innerHTML = "";
 
   const nav = document.createElement("div");
@@ -740,6 +745,7 @@ function renderMarsiyaSection(sectionId) {
   syncLibraryUrlState();
   setLibraryShareButton(null);
   setMarsiyaFullscreenMode(false);
+  setMarsiyaContentOnlyMode(false);
 
   titleEl.textContent = `Marsiya · ${section.title}`;
   metaEl.textContent = "Section";
@@ -857,7 +863,8 @@ async function renderSelectedMarsiya(itemId) {
   state.selectedMarsiyaSection = item.sectionId;
   syncLibraryUrlState();
   setLibraryShareButton({ type: "marsiya", value: item.id });
-  setMarsiyaFullscreenMode(window.matchMedia("(max-width: 900px)").matches);
+  setMarsiyaFullscreenMode(false);
+  setMarsiyaContentOnlyMode(window.matchMedia("(max-width: 900px)").matches);
   titleEl.textContent = `Marsiya · ${item.title}`;
   metaEl.textContent = `Section: ${item.sectionTitle}`;
   contentEl.innerHTML = "";
@@ -994,6 +1001,7 @@ async function renderSelectedSurah(surahNo) {
   const surahName = QURAN_SURAHS[surahNo - 1] || `Surah ${surahNo}`;
   setLibraryShareButton({ type: "quran", value: surahNo });
   setMarsiyaFullscreenMode(false);
+  setMarsiyaContentOnlyMode(false);
   titleEl.textContent = `Quran · ${surahNo}. ${surahName}`;
   metaEl.textContent = "Arabic · Urdu · English";
 
@@ -1033,6 +1041,7 @@ function renderLibrarySection(index = 0) {
   if (!titleEl || !metaEl || !contentEl) return;
   if (normalized !== 5 && normalized !== 0) setLibraryShareButton(null);
   if (normalized !== 5) setMarsiyaFullscreenMode(false);
+  if (normalized !== 5) setMarsiyaContentOnlyMode(false);
 
   if (normalized === 0 && state.selectedSurah) {
     const surahNo = state.selectedSurah;
@@ -1092,6 +1101,7 @@ function toggleLibrarySection(index) {
     state.libraryOpen = false;
     setLibraryPanelVisibility(false);
     setMarsiyaFullscreenMode(false);
+    setMarsiyaContentOnlyMode(false);
     setSurahLangControlsVisible(false);
     state.selectedSurah = null;
     updateLibraryActiveState();
@@ -1909,28 +1919,80 @@ function registerServiceWorker() {
   navigator.serviceWorker.register("./sw.js").catch(() => {});
 }
 
+const INSTALL_PROMPT_LAST_SHOWN_KEY = "alfaraj_install_prompt_last_shown";
+
+function getTodayKey() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function hasShownInstallPromptToday() {
+  try {
+    return localStorage.getItem(INSTALL_PROMPT_LAST_SHOWN_KEY) === getTodayKey();
+  } catch {
+    return false;
+  }
+}
+
+function markInstallPromptShownToday() {
+  try {
+    localStorage.setItem(INSTALL_PROMPT_LAST_SHOWN_KEY, getTodayKey());
+  } catch {
+    // no-op
+  }
+}
+
+function removeInstallNudge() {
+  const existing = document.getElementById("install-nudge");
+  if (existing) existing.remove();
+}
+
+function showInstallNudge({ title, text, onInstall }) {
+  removeInstallNudge();
+  const nudge = document.createElement("section");
+  nudge.id = "install-nudge";
+  nudge.className = "install-nudge";
+  nudge.setAttribute("role", "dialog");
+  nudge.setAttribute("aria-live", "polite");
+  nudge.innerHTML = `
+    <button class="install-nudge-close" type="button" aria-label="Close">✕</button>
+    <h3>${title}</h3>
+    <p>${text}</p>
+    <div class="install-nudge-actions">
+      <button class="install-nudge-install" type="button">Install</button>
+      <button class="install-nudge-later" type="button">Later</button>
+    </div>
+  `;
+  document.body.appendChild(nudge);
+
+  const close = () => removeInstallNudge();
+  nudge.querySelector(".install-nudge-close")?.addEventListener("click", close);
+  nudge.querySelector(".install-nudge-later")?.addEventListener("click", close);
+  nudge.querySelector(".install-nudge-install")?.addEventListener("click", async () => {
+    await onInstall();
+    close();
+  });
+}
+
 function wireInstallPrompt() {
   const installBtn = document.getElementById("install-app-btn");
   if (!installBtn) return;
+  const params = new URLSearchParams(window.location.search);
+  const libParam = params.get("library");
+  const hasSharedDeepLink =
+    (libParam === "marsiya" && Boolean(params.get("marsiya"))) ||
+    (libParam === "quran" && Boolean(params.get("surah")));
   const ua = navigator.userAgent || "";
   const isIOS =
     /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const isStandalone =
     window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  const shouldShowSharedInstallNudge = hasSharedDeepLink && !isStandalone && !hasShownInstallPromptToday();
 
-  if (isIOS && !isStandalone) {
-    installBtn.classList.remove("hidden");
-    installBtn.setAttribute("title", "Add to Home Screen");
-    installBtn.setAttribute("aria-label", "Add to Home Screen");
-  }
-
-  window.addEventListener("beforeinstallprompt", (event) => {
-    event.preventDefault();
-    deferredInstallPrompt = event;
-    installBtn.classList.remove("hidden");
-  });
-
-  installBtn.addEventListener("click", async () => {
+  async function triggerInstallFlow() {
     if (deferredInstallPrompt) {
       deferredInstallPrompt.prompt();
       try {
@@ -1944,13 +2006,52 @@ function wireInstallPrompt() {
     }
 
     if (isIOS && !isStandalone) {
-      window.alert("To install on iPhone: tap Safari Share, then choose 'Add to Home Screen'.");
+      showInstallNudge({
+        title: "Install Al Faraj",
+        text: "On iPhone: tap Safari Share, then choose Add to Home Screen.",
+        onInstall: async () => {}
+      });
+    }
+  }
+
+  if (isIOS && !isStandalone) {
+    installBtn.classList.remove("hidden");
+    installBtn.setAttribute("title", "Add to Home Screen");
+    installBtn.setAttribute("aria-label", "Add to Home Screen");
+    if (shouldShowSharedInstallNudge) {
+      markInstallPromptShownToday();
+      window.setTimeout(() => {
+        showInstallNudge({
+          title: "Install Al Faraj",
+          text: "Install the app for quicker access to this shared page.",
+          onInstall: triggerInstallFlow
+        });
+      }, 300);
+    }
+  }
+
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    installBtn.classList.remove("hidden");
+    if (shouldShowSharedInstallNudge) {
+      markInstallPromptShownToday();
+      window.setTimeout(async () => {
+        showInstallNudge({
+          title: "Install Al Faraj",
+          text: "Install the app for quicker access to this shared page.",
+          onInstall: triggerInstallFlow
+        });
+      }, 300);
     }
   });
+
+  installBtn.addEventListener("click", triggerInstallFlow);
 
   window.addEventListener("appinstalled", () => {
     deferredInstallPrompt = null;
     installBtn.classList.add("hidden");
+    removeInstallNudge();
   });
 }
 
