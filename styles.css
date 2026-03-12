@@ -409,6 +409,7 @@ body.marsiya-fullscreen #library-panel::-webkit-scrollbar-thumb:hover {
 }
 
 #quran-surah-search,
+#quran-reader-search,
 #marsiya-search,
 #amaal-search,
 #amaal-reader-search,
@@ -429,6 +430,11 @@ body.marsiya-fullscreen #library-panel::-webkit-scrollbar-thumb:hover {
 #quran-surah-search,
 #marsiya-search {
   margin-bottom: 8px;
+}
+
+#quran-reader-search {
+  margin-bottom: 8px;
+  padding-right: 36px;
 }
 
 #amaal-search {
@@ -467,6 +473,7 @@ body.marsiya-fullscreen #library-panel::-webkit-scrollbar-thumb:hover {
 }
 
 #quran-surah-search::placeholder,
+#quran-reader-search::placeholder,
 #marsiya-search::placeholder,
 #amaal-search::placeholder,
 #amaal-reader-search::placeholder,
@@ -476,6 +483,7 @@ body.marsiya-fullscreen #library-panel::-webkit-scrollbar-thumb:hover {
 }
 
 #quran-surah-search:focus,
+#quran-reader-search:focus,
 #marsiya-search:focus,
 #amaal-search:focus,
 #amaal-reader-search:focus,

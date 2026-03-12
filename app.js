@@ -198,6 +198,7 @@ const state = {
   libraryIndex: 0,
   libraryOpen: false,
   selectedSurah: null,
+  quranReturnAmaal: null,
   surahCache: {},
   surahLangs: { english: false, urdu: false },
   selectedMarsiya: null,
@@ -974,6 +975,7 @@ async function shareByType(shareType, shareValue, feedbackBtn) {
 
 function syncLibraryUrlState(mode = "replace") {
   const url = new URL(window.location.href);
+  url.searchParams.delete("from");
   url.searchParams.delete("library");
   url.searchParams.delete("section");
   url.searchParams.delete("marsiya");
@@ -989,6 +991,13 @@ function syncLibraryUrlState(mode = "replace") {
     } else if (state.libraryIndex === 0 && state.selectedSurah) {
       url.searchParams.set("library", "quran");
       url.searchParams.set("surah", String(state.selectedSurah));
+      if (state.quranReturnAmaal?.monthKey) {
+        url.searchParams.set("from", "amaal");
+        url.searchParams.set("month", String(state.quranReturnAmaal.monthKey));
+        if (state.quranReturnAmaal.dayIndex !== null && state.quranReturnAmaal.dayIndex !== undefined) {
+          url.searchParams.set("day", String(state.quranReturnAmaal.dayIndex));
+        }
+      }
     }
   } else if (currentAmaalRoute) {
     url.searchParams.set("library", "amaal");
@@ -1011,6 +1020,7 @@ function applyLibraryStateFromUrl() {
   state.libraryOpen = false;
   state.libraryIndex = 0;
   state.selectedSurah = null;
+  state.quranReturnAmaal = null;
   state.selectedMarsiya = null;
   state.selectedMarsiyaSection = null;
   pendingAmaalRoute = null;
@@ -1039,6 +1049,15 @@ function applyLibraryStateFromUrl() {
       state.libraryOpen = true;
       state.libraryIndex = 0;
       state.selectedSurah = surah;
+      const from = params.get("from");
+      const month = String(params.get("month") || "");
+      const dayRaw = params.get("day");
+      if (from === "amaal" && HIJRI_MONTH_ORDER.includes(month)) {
+        state.quranReturnAmaal = {
+          monthKey: month,
+          dayIndex: resolveAmaalDayForMonth(month, dayRaw)
+        };
+      }
     }
     return;
   }
@@ -1573,6 +1592,91 @@ function renderSurahContent(data) {
   data.ayahs.forEach((row) => contentEl.appendChild(createSurahAyahNode(row)));
 }
 
+function renderQuranReaderIndex(filter = "") {
+  const titleEl = document.getElementById("library-title");
+  const metaEl = document.getElementById("library-meta");
+  const contentEl = document.getElementById("library-content");
+  if (!titleEl || !metaEl || !contentEl) return;
+
+  state.libraryOpen = true;
+  state.libraryIndex = 0;
+  state.selectedSurah = null;
+  setLibraryPanelVisibility(true);
+  setSurahLangControlsVisible(false);
+  setLibraryShareButton(null);
+  updateLibraryActiveState();
+  syncLibraryUrlState();
+
+  titleEl.textContent = "Quran";
+  metaEl.textContent = "Surah index";
+  contentEl.innerHTML = "";
+  const indexCrumbs = [];
+  if (state.quranReturnAmaal?.monthKey) {
+    indexCrumbs.push({
+      label: "Back to Amaal",
+      dataset: {
+        "amaal-reader-nav": state.quranReturnAmaal.dayIndex === null ? "month" : "day",
+        "amaal-month": state.quranReturnAmaal.monthKey,
+        "amaal-day-index": state.quranReturnAmaal.dayIndex
+      }
+    });
+  }
+  indexCrumbs.push({ label: "Quran", active: true, dataset: { "quran-nav": "index" } });
+  contentEl.appendChild(createReaderCrumbs(indexCrumbs));
+
+  const searchWrap = document.createElement("div");
+  searchWrap.className = "search-input-wrap";
+  searchWrap.innerHTML = `
+    <input id="quran-reader-search" placeholder="Search Surah..." />
+    <button id="quran-reader-search-clear" class="search-clear-btn hidden" type="button" aria-label="Clear Quran search" title="Clear search">×</button>
+  `;
+  contentEl.appendChild(searchWrap);
+
+  const list = document.createElement("div");
+  list.className = "quran-surah-list";
+  list.id = "quran-reader-list";
+  contentEl.appendChild(list);
+
+  const searchInput = searchWrap.querySelector("#quran-reader-search");
+  const clearBtn = searchWrap.querySelector("#quran-reader-search-clear");
+
+  const renderList = (query = "") => {
+    const q = String(query || "").trim().toLowerCase();
+    list.innerHTML = "";
+    QURAN_SURAHS.forEach((name, idx) => {
+      const number = idx + 1;
+      if (q && !`${number} ${name}`.toLowerCase().includes(q)) return;
+      const btn = document.createElement("button");
+      btn.className = "quran-surah-item";
+      btn.type = "button";
+      btn.setAttribute("data-quran-nav", "surah");
+      btn.setAttribute("data-quran-surah", String(number));
+      btn.textContent = `${number}. ${name}`;
+      list.appendChild(btn);
+    });
+  };
+
+  const runSearch = () => {
+    const query = searchInput?.value || "";
+    clearBtn?.classList.toggle("hidden", !String(query || "").trim());
+    renderList(query);
+  };
+
+  searchInput?.addEventListener("input", runSearch);
+  clearBtn?.addEventListener("click", () => {
+    if (!searchInput) return;
+    searchInput.value = "";
+    clearBtn.classList.add("hidden");
+    renderList("");
+    searchInput.focus();
+  });
+
+  const initial = String(filter || "");
+  if (searchInput && initial) searchInput.value = initial;
+  clearBtn?.classList.toggle("hidden", !initial.trim());
+  renderList(initial);
+}
+
 async function renderSelectedSurah(surahNo) {
   const titleEl = document.getElementById("library-title");
   const metaEl = document.getElementById("library-meta");
@@ -1586,12 +1690,22 @@ async function renderSelectedSurah(surahNo) {
   titleEl.textContent = `Quran · ${surahNo}. ${surahName}`;
   metaEl.textContent = "Arabic · Urdu · English";
   contentEl.innerHTML = "";
-  contentEl.appendChild(
-    createReaderCrumbs([
-      { label: "Quran" },
-      { label: `${surahNo}. ${surahName}`, active: true }
-    ])
+  const crumbs = [];
+  if (state.quranReturnAmaal?.monthKey) {
+    crumbs.push({
+      label: "Back to Amaal",
+      dataset: {
+        "amaal-reader-nav": state.quranReturnAmaal.dayIndex === null ? "month" : "day",
+        "amaal-month": state.quranReturnAmaal.monthKey,
+        "amaal-day-index": state.quranReturnAmaal.dayIndex
+      }
+    });
+  }
+  crumbs.push(
+    { label: "Quran", dataset: { "quran-nav": "index" } },
+    { label: `${surahNo}. ${surahName}`, active: true, dataset: { "quran-nav": "surah", "quran-surah": surahNo } }
   );
+  contentEl.appendChild(createReaderCrumbs(crumbs));
 
   const cached = state.surahCache[surahNo];
   if (cached) {
@@ -1661,7 +1775,11 @@ function renderLibrarySection(index = 0) {
   metaEl.textContent = current.meta;
   contentEl.innerHTML = "";
   contentEl.appendChild(createReaderCrumbs([{ label: current.title, active: true }]));
-  if (normalized === 0) setLibraryShareButton(null);
+  if (normalized === 0) {
+    setLibraryShareButton(null);
+    renderQuranReaderIndex(document.getElementById("quran-surah-search")?.value || "");
+    return;
+  }
   if (normalized === 5) {
     renderMarsiyaIndex();
     updateLibraryActiveState();
@@ -1702,6 +1820,7 @@ function toggleLibrarySection(index) {
   }
   state.libraryOpen = true;
   if (normalized !== 0) state.selectedSurah = null;
+  if (normalized === 0 && !state.selectedSurah) state.quranReturnAmaal = null;
   setLibraryPanelVisibility(true);
   renderLibrarySection(normalized);
 }
@@ -1738,6 +1857,7 @@ function wireLibraryViewer() {
     state.libraryOpen = true;
     state.libraryIndex = 0;
     state.selectedSurah = number;
+    state.quranReturnAmaal = null;
     setLibraryPanelVisibility(true);
     setSurahLangControlsVisible(true);
     renderLibrarySection(0);
@@ -1803,6 +1923,53 @@ function wireLibraryViewer() {
   const libraryContent = document.getElementById("library-content");
   libraryContent?.addEventListener("click", (event) => {
     const target = event.target;
+    const link = target && target.closest ? target.closest('a[href^="?library=quran"]') : null;
+    if (link) {
+      event.preventDefault();
+      const href = link.getAttribute("href") || "";
+      const params = new URLSearchParams(href.startsWith("?") ? href.slice(1) : href);
+      const surahNo = Number(params.get("surah") || "0");
+      const month = String(params.get("month") || "");
+      const dayRaw = params.get("day");
+      if (params.get("from") === "amaal" && HIJRI_MONTH_ORDER.includes(month)) {
+        state.quranReturnAmaal = {
+          monthKey: month,
+          dayIndex: resolveAmaalDayForMonth(month, dayRaw)
+        };
+      }
+      if (!Number.isNaN(surahNo) && surahNo >= 1 && surahNo <= QURAN_SURAHS.length) {
+        state.libraryOpen = true;
+        state.libraryIndex = 0;
+        state.selectedSurah = surahNo;
+        setLibraryPanelVisibility(true);
+        setSurahLangControlsVisible(true);
+        syncLibraryUrlState();
+        renderSelectedSurah(surahNo);
+      }
+      return;
+    }
+
+    const quranBtn = target && target.closest ? target.closest("[data-quran-nav]") : null;
+    if (quranBtn) {
+      const navType = quranBtn.getAttribute("data-quran-nav");
+      if (navType === "index") {
+        renderQuranReaderIndex("");
+        return;
+      }
+      if (navType === "surah") {
+        const surahNo = Number(quranBtn.getAttribute("data-quran-surah") || "0");
+        if (Number.isNaN(surahNo) || surahNo < 1 || surahNo > QURAN_SURAHS.length) return;
+        state.libraryOpen = true;
+        state.libraryIndex = 0;
+        state.selectedSurah = surahNo;
+        setLibraryPanelVisibility(true);
+        setSurahLangControlsVisible(true);
+        syncLibraryUrlState();
+        renderSelectedSurah(surahNo);
+        return;
+      }
+    }
+
     const amaalBtn = target && target.closest ? target.closest("[data-amaal-reader-nav]") : null;
     if (amaalBtn) {
       const navType = amaalBtn.getAttribute("data-amaal-reader-nav");
@@ -1937,10 +2104,24 @@ function escapeHtml(value) {
 
 function formatCardDescription(description) {
   const escaped = escapeHtml(description);
-  const linked = escaped.replace(
-    /(https?:\/\/[^\s<]+)/g,
-    '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+  const linkTokens = [];
+  let linked = escaped.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+|\?library=quran[^\s)]+)\)/g,
+    (_, label, url) => {
+      const token = `__LINK_TOKEN_${linkTokens.length}__`;
+      linkTokens.push(`<a href="${url}">${label}</a>`);
+      return token;
+    }
   );
+  linked = linked.replace(
+    /(https?:\/\/[^\s<]+)/g,
+    '<a href="$1">$1</a>'
+  );
+  linked = linked.replace(
+    /(\?library=quran[^\s<]+)/g,
+    '<a href="$1">Open in Quran</a>'
+  );
+  linked = linked.replace(/__LINK_TOKEN_(\d+)__/g, (_, index) => linkTokens[Number(index)] || "");
   return linked.replace(/\n/g, "<br>");
 }
 
@@ -2247,9 +2428,9 @@ const SHIA_MONTHLY_AMAAL_GUIDE = {
         day: 23,
         title: "Most emphasized Qadr night",
         amaal: [
-          "Recite Surah al-'Ankabut (29) and Surah al-Rum (30).\nLinks: https://quran.com/29 and https://quran.com/30",
-          "Recite Surah al-Dukhan (44).\nLink: https://quran.com/44",
-          "Recite Surah al-Qadr 1000 times.\nLink: https://quran.com/97",
+          "Recite [Surah al-'Ankabut (29)](?library=quran&surah=29&from=amaal&month=ramadan&day=23) and [Surah al-Rum (30)](?library=quran&surah=30&from=amaal&month=ramadan&day=23).",
+          "Recite [Surah al-Dukhan (44)](?library=quran&surah=44&from=amaal&month=ramadan&day=23).",
+          "Recite [Surah al-Qadr (97)](?library=quran&surah=97&from=amaal&month=ramadan&day=23) 1000 times.",
           "Repeat Dua for Imam al-Hujjah (ajtf) as much as possible:\nاللّهُمَّ كُنْ لِوَلِيِّكَ الْحُجَّةِ بْنِ الْحَسَنِ صَلَوَاتُكَ عَلَيْهِ وَعَلَى آبَائِهِ فِي هَذِهِ السَّاعَةِ وَفِي كُلِّ سَاعَةٍ وَلِيًّا وَحَافِظًا وَقَائِدًا وَنَاصِرًا وَدَلِيلًا وَعَيْنًا حَتّى تُسْكِنَهُ أَرْضَكَ طَوْعًا وَتُمَتِّعَهُ فِيهَا طَوِيلًا.",
           "Recite:\nاللَّهُمَّ امْدُدْ لِي فِي عُمْرِي وَأَوْسِعْ لِي فِي رِزْقِي وَأَصِحَّ لِي جِسْمِي وَبَلِّغْنِي أَمَلِي، وَإِنْ كُنْتُ مِنَ الْأَشْقِيَاءِ فَامْحُنِي مِنَ الْأَشْقِيَاءِ وَاكْتُبْنِي مِنَ السُّعَدَاءِ.",
           "Recite:\nاللَّهُمَّ اجْعَلْ فِيمَا تَقْضِي وَفِيمَا تُقَدِّرُ مِنَ الْأَمْرِ الْمَحْتُومِ... أَنْ تَكْتُبَنِي مِنْ حُجَّاجِ بَيْتِكَ الْحَرَامِ... وَأَنْ تُطِيلَ عُمْرِي وَتُوَسِّعَ لِي فِي رِزْقِي.",
