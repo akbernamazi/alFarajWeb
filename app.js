@@ -185,6 +185,7 @@ const state = {
   bookmark: loadJSON(STORAGE_KEYS.bookmark, null),
   prayerTracker: loadJSON(STORAGE_KEYS.tracker, {}),
   amaalDate: loadJSON(STORAGE_KEYS.amaalDate, getLocalIsoDate()),
+  amaalShowComplete: false,
   lastData: { pub: [], priv: [], places: [], prayerTimes: null },
   locationSuggestions: {},
   libraryIndex: 0,
@@ -2068,6 +2069,7 @@ function appendAmaalGroup(root, heading, rows) {
 function renderTodayAmaal(now = new Date()) {
   const root = document.getElementById("today-amaal");
   const meta = document.getElementById("amaal-meta");
+  const completeBtn = document.getElementById("amaal-complete-btn");
   if (!root) return;
 
   const plan = getTodayAmaalPlan(now);
@@ -2076,9 +2078,22 @@ function renderTodayAmaal(now = new Date()) {
     const h = formatIslamicDateLabel(now);
     meta.textContent = `${plan.label} · ${g} · ${h} AH`;
   }
+  completeBtn?.classList.toggle("active", Boolean(state.amaalShowComplete));
+  completeBtn?.setAttribute("aria-pressed", state.amaalShowComplete ? "true" : "false");
+
+  const shortLimit = 3;
+  const obligatory = state.amaalShowComplete ? (plan.obligatory || []) : (plan.obligatory || []).slice(0, shortLimit);
+  const recommended = state.amaalShowComplete ? (plan.recommended || []) : (plan.recommended || []).slice(0, shortLimit);
+
   root.innerHTML = "";
-  appendAmaalGroup(root, "Obligatory", plan.obligatory || []);
-  appendAmaalGroup(root, "Recommended", plan.recommended || []);
+  appendAmaalGroup(root, "Obligatory", obligatory);
+  appendAmaalGroup(root, "Recommended", recommended);
+  if (
+    !state.amaalShowComplete &&
+    ((plan.obligatory || []).length > shortLimit || (plan.recommended || []).length > shortLimit)
+  ) {
+    root.appendChild(createItemCard("", "Tap 📖 to show complete amaal."));
+  }
 }
 
 function applyAmaalDateUI() {
@@ -2089,6 +2104,7 @@ function applyAmaalDateUI() {
 function wireAmaalDateControls() {
   const input = document.getElementById("amaal-date");
   const todayBtn = document.getElementById("amaal-date-today");
+  const completeBtn = document.getElementById("amaal-complete-btn");
 
   input?.addEventListener("change", () => {
     const value = input.value;
@@ -2102,6 +2118,11 @@ function wireAmaalDateControls() {
     state.amaalDate = getLocalIsoDate();
     saveJSON(STORAGE_KEYS.amaalDate, state.amaalDate);
     applyAmaalDateUI();
+    renderTodayAmaal(parseIsoDate(state.amaalDate) || new Date());
+  });
+
+  completeBtn?.addEventListener("click", () => {
+    state.amaalShowComplete = !state.amaalShowComplete;
     renderTodayAmaal(parseIsoDate(state.amaalDate) || new Date());
   });
 }

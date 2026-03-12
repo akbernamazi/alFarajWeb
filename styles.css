@@ -339,6 +339,39 @@ body.marsiya-fullscreen #library-panel::-webkit-scrollbar-thumb:hover {
   grid-column: 1 / -1;
 }
 
+.amaal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+.amaal-title {
+  margin-right: 0;
+}
+
+.amaal-complete-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(72, 229, 194, 0.55);
+  background: rgba(72, 229, 194, 0.12);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 0.84rem;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.amaal-complete-btn.active {
+  border-color: rgba(72, 229, 194, 0.95);
+  background: rgba(72, 229, 194, 0.22);
+  box-shadow: 0 0 0 2px rgba(72, 229, 194, 0.24);
+}
+
 .control-row select,
 .control-row input,
 .control-row button,

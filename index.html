@@ -43,7 +43,7 @@
           ☰
         </button>
         <button id="install-app-btn" class="install-app-icon install-app-btn hidden" type="button" aria-label="Install App" title="Install App">↓</button>
-        <p class="kicker">Bismillah Rahman Rahim</p>
+        <p class="kicker">Bismillahir Rahmanir Rahim</p>
         <h1 class="brand-row">
           <a class="brand-home-link" href="./" aria-label="Go to homepage">
             <img class="brand-mark" src="./icons/2.svg" alt="" />
@@ -267,7 +267,19 @@
           </article>
 
           <article class="panel" id="amaal-panel">
-            <h2>Today's Amaal</h2>
+            <div class="amaal-head">
+              <h2 class="amaal-title">Today's Amaal</h2>
+              <button
+                id="amaal-complete-btn"
+                class="amaal-complete-btn"
+                type="button"
+                aria-label="Show complete amaal"
+                title="Show complete amaal"
+              >
+                <span aria-hidden="true">📖</span>
+                <span>Complete Amaal</span>
+              </button>
+            </div>
             <p class="meta" id="amaal-meta">Daily recommended actions</p>
             <div class="control-row amaal-controls">
               <label for="amaal-date">Amaal Date</label>
