@@ -196,7 +196,8 @@ const state = {
   selectedMarsiyaSection: null,
   marsiyaCache: {},
   marsiyaSections: DEFAULT_MARSIYA_SECTIONS,
-  marsiyaSearchDocs: {}
+  marsiyaSearchDocs: {},
+  marsiyaSearchQuery: ""
 };
 let leafletMap = null;
 let surahRequestId = 0;
@@ -810,6 +811,7 @@ function renderMarsiyaIndex() {
   nav.className = "marsiya-crumbs";
   nav.appendChild(createMarsiyaCrumb("Index", "index", "", true));
   contentEl.appendChild(nav);
+  appendMarsiyaMobileSearch(contentEl);
 
   state.marsiyaSections.forEach((section) => {
     const row = document.createElement("button");
@@ -858,6 +860,7 @@ function renderMarsiyaSection(sectionId) {
   nav.appendChild(document.createTextNode("›"));
   nav.appendChild(createMarsiyaCrumb(section.title, "section", section.id, true));
   contentEl.appendChild(nav);
+  appendMarsiyaMobileSearch(contentEl);
 
   section.poems.forEach((poem) => {
     const row = document.createElement("button");
@@ -1000,6 +1003,87 @@ function getMarsiyaSearchMatches(query) {
   return matches;
 }
 
+function buildMarsiyaSearchResults(query, fullTextMatches) {
+  const normalized = normalizeSearchText(query);
+  if (!normalized) return [];
+  if (!fullTextMatches) return [];
+
+  const results = [];
+  state.marsiyaSections.forEach((section) => {
+    section.poems.forEach((item) => {
+      if (fullTextMatches.has(item.id)) {
+        results.push({
+          id: item.id,
+          title: item.title,
+          sectionId: section.id,
+          sectionTitle: section.title
+        });
+      }
+    });
+  });
+  return results;
+}
+
+function appendMarsiyaMobileSearch(parentEl) {
+  if (!parentEl) return;
+
+  const searchWrap = document.createElement("div");
+  searchWrap.className = "marsiya-mobile-search";
+
+  const searchInput = document.createElement("input");
+  searchInput.type = "text";
+  searchInput.id = "marsiya-mobile-search";
+  searchInput.placeholder = "Search Marsiya...";
+  searchInput.value = state.marsiyaSearchQuery || "";
+  searchWrap.appendChild(searchInput);
+
+  const resultsEl = document.createElement("div");
+  resultsEl.className = "marsiya-mobile-results";
+  searchWrap.appendChild(resultsEl);
+  parentEl.appendChild(searchWrap);
+
+  let localSearchReqId = 0;
+  const renderResults = (rows) => {
+    resultsEl.innerHTML = "";
+    if (!rows.length) return;
+    rows.slice(0, 8).forEach((row) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "marsiya-mobile-result-btn";
+      btn.textContent = row.title;
+      btn.addEventListener("click", () => {
+        state.selectedMarsiya = row.id;
+        state.selectedMarsiyaSection = row.sectionId;
+        syncLibraryUrlState();
+        renderMarsiyaList(state.marsiyaSearchQuery);
+        renderSelectedMarsiya(row.id);
+      });
+      resultsEl.appendChild(btn);
+    });
+  };
+
+  const runSearch = () => {
+    const query = searchInput.value || "";
+    state.marsiyaSearchQuery = query;
+    const currentReq = ++localSearchReqId;
+    if (!normalizeSearchText(query)) {
+      resultsEl.innerHTML = "";
+      return;
+    }
+    ensureMarsiyaSearchIndex()
+      .then(() => {
+        if (currentReq !== localSearchReqId) return;
+        const matches = getMarsiyaSearchMatches(query);
+        const rows = buildMarsiyaSearchResults(query, matches);
+        renderResults(rows);
+      })
+      .catch(() => {});
+  };
+
+  searchInput.addEventListener("input", runSearch);
+  runSearch();
+}
+
 async function renderSelectedMarsiya(itemId) {
   const titleEl = document.getElementById("library-title");
   const metaEl = document.getElementById("library-meta");
@@ -1059,6 +1143,7 @@ async function renderSelectedMarsiya(itemId) {
       nav.appendChild(shareInlineBtn);
     }
     reader.appendChild(nav);
+    appendMarsiyaMobileSearch(reader);
 
     const body = document.createElement("pre");
     body.className = "marsiya-plain-text";
@@ -1319,6 +1404,7 @@ function wireLibraryViewer() {
   const marsiyaSearch = document.getElementById("marsiya-search");
   marsiyaSearch?.addEventListener("input", () => {
     const query = marsiyaSearch.value;
+    state.marsiyaSearchQuery = query;
     const reqId = ++marsiyaSearchRequestId;
     renderMarsiyaList(query);
     if (!normalizeSearchText(query)) return;
