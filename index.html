@@ -136,7 +136,10 @@
           <details class="side-item library-side-item" data-library-index="5">
             <summary>Marsiya</summary>
             <article class="panel">
-              <input id="marsiya-search" placeholder="Search Marsiya..." />
+              <div class="search-input-wrap">
+                <input id="marsiya-search" placeholder="Search Marsiya..." />
+                <button id="marsiya-search-clear" class="search-clear-btn hidden" type="button" aria-label="Clear Marsiya search" title="Clear search">×</button>
+              </div>
               <div class="marsiya-list" id="marsiya-list"></div>
             </article>
           </details>
@@ -223,6 +226,16 @@
                 <label for="font-size-range">Font size</label>
                 <input id="font-size-range" type="range" min="14" max="22" step="1" />
                 <span id="font-size-value"></span>
+              </div>
+              <div class="control-row">
+                <label for="hijri-offset">Hijri day adjustment</label>
+                <select id="hijri-offset">
+                  <option value="-2">-2 days</option>
+                  <option value="-1">-1 day</option>
+                  <option value="0">0 (default)</option>
+                  <option value="1">+1 day</option>
+                  <option value="2">+2 days</option>
+                </select>
               </div>
               <div class="control-row">
                 <label for="api-base-url">API Base URL</label>

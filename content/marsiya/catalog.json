@@ -756,13 +756,14 @@
         "title": "SAJJAD JAB DOBAARA ASEER -E JAFAA HUVEY",
         "page": 121,
         "file": "./content/marsiya/sajjad-jab-dobaara-aseer-e-jafaa-huvey.txt"
-      },
-      {
-        "id": "shehzadi-umme-kulsoom",
-        "title": "SHEHZADI UMME KULSOOM",
-        "page": 123,
-        "file": "./content/marsiya/shehzadi-umme-kulsoom.txt"
-      },
+      }
+    ]
+  },
+  {
+    "id": "section-shehzadi-umme-kulsoom",
+    "title": "SHEHZADI UMME KULSOOM",
+    "page": 123,
+    "poems": [
       {
         "id": "umme-kulsoom-khwaaharey-zainab",
         "title": "UMME KULSOOM KHWAAHAREY ZAINAB",

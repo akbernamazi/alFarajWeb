@@ -180,7 +180,7 @@ const QURAN_SURAHS = [
 ];
 
 const state = {
-  settings: loadJSON(STORAGE_KEYS.settings, { language: "en", fontSize: 16, apiBaseUrl: "" }),
+  settings: loadJSON(STORAGE_KEYS.settings, { language: "en", fontSize: 16, apiBaseUrl: "", hijriOffset: 0 }),
   favorites: loadJSON(STORAGE_KEYS.favorites, []),
   bookmark: loadJSON(STORAGE_KEYS.bookmark, null),
   prayerTracker: loadJSON(STORAGE_KEYS.tracker, {}),
@@ -197,8 +197,11 @@ const state = {
   marsiyaCache: {},
   marsiyaSections: DEFAULT_MARSIYA_SECTIONS,
   marsiyaSearchDocs: {},
-  marsiyaSearchQuery: ""
+  marsiyaSearchQuery: "",
+  userCoords: null
 };
+if (!Number.isFinite(Number(state.settings.hijriOffset))) state.settings.hijriOffset = 0;
+
 let leafletMap = null;
 let surahRequestId = 0;
 let marsiyaRequestId = 0;
@@ -320,6 +323,175 @@ function getCurrentPositionOnce() {
       { enableHighAccuracy: false, timeout: 7000, maximumAge: 10 * 60 * 1000 }
     );
   });
+}
+
+function getCurrentPositionForMap() {
+  if (!("geolocation" in navigator)) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: Number(position.coords.latitude),
+          longitude: Number(position.coords.longitude)
+        });
+      },
+      () => resolve(null),
+      { enableHighAccuracy: false, timeout: 7000, maximumAge: 5 * 60 * 1000 }
+    );
+  });
+}
+
+function toCoordNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const toRad = (v) => (v * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusKm * c;
+}
+
+function sortPlacesByDistance(places, userCoords) {
+  const lat = toCoordNumber(userCoords?.latitude);
+  const lng = toCoordNumber(userCoords?.longitude);
+  if (lat === null || lng === null) {
+    return (places || []).map((place) => ({ ...place, distanceKm: null }));
+  }
+
+  return (places || [])
+    .map((place) => {
+      const placeLat = toCoordNumber(place.latitude);
+      const placeLng = toCoordNumber(place.longitude);
+      if (placeLat === null || placeLng === null) return { ...place, distanceKm: null };
+      return {
+        ...place,
+        distanceKm: haversineKm(lat, lng, placeLat, placeLng)
+      };
+    })
+    .sort((a, b) => {
+      const da = Number.isFinite(a.distanceKm) ? a.distanceKm : Number.POSITIVE_INFINITY;
+      const db = Number.isFinite(b.distanceKm) ? b.distanceKm : Number.POSITIVE_INFINITY;
+      return da - db;
+    });
+}
+
+function isLikelyShiaPlace(tags = {}) {
+  const denomination = String(tags.denomination || tags["islam:denomination"] || "").toLowerCase();
+  const name = String(tags.name || "").toLowerCase();
+  const operator = String(tags.operator || "").toLowerCase();
+  const text = `${name} ${operator}`.toLowerCase();
+
+  if (
+    denomination.includes("shia") ||
+    denomination.includes("shi'a") ||
+    denomination.includes("jafari") ||
+    denomination.includes("ja'fari") ||
+    denomination.includes("twelver")
+  ) {
+    return true;
+  }
+
+  const shiaKeywords = [
+    "imambargah",
+    "imambara",
+    "ashurkhana",
+    "azakhana",
+    "hussainia",
+    "husseinia",
+    "husainia",
+    "jafaria",
+    "jafari",
+    "panjetan",
+    "ahlulbayt",
+    "ahl al bayt"
+  ];
+  return shiaKeywords.some((keyword) => text.includes(keyword));
+}
+
+function overpassElementToPlace(element, index = 0) {
+  const lat = toCoordNumber(element?.lat ?? element?.center?.lat);
+  const lng = toCoordNumber(element?.lon ?? element?.center?.lon);
+  if (lat === null || lng === null) return null;
+  const tags = element?.tags || {};
+  const name = String(tags.name || "").trim() || "Mosque";
+  const addressParts = [
+    tags["addr:street"],
+    tags["addr:suburb"],
+    tags["addr:city"] || tags["addr:town"] || tags["addr:village"],
+    tags["addr:state"]
+  ].filter(Boolean);
+  const address = addressParts.join(", ") || "Nearby mosque";
+  return {
+    place_id: `live-${element.type || "node"}-${element.id || index}`,
+    name,
+    address,
+    latitude: lat,
+    longitude: lng,
+    has_wudu: false,
+    has_women_area: false,
+    has_parking: false,
+    jumuah_time: null,
+    denomination: String(tags.denomination || tags["islam:denomination"] || ""),
+    is_shia: isLikelyShiaPlace(tags)
+  };
+}
+
+async function getLiveNearbyPrayerPlaces(latitude, longitude, radiusMeters = 5000) {
+  const lat = toCoordNumber(latitude);
+  const lng = toCoordNumber(longitude);
+  if (lat === null || lng === null) return [];
+
+  const query = `
+[out:json][timeout:20];
+(
+  node(around:${radiusMeters},${lat},${lng})["amenity"="place_of_worship"]["religion"="muslim"];
+  way(around:${radiusMeters},${lat},${lng})["amenity"="place_of_worship"]["religion"="muslim"];
+  relation(around:${radiusMeters},${lat},${lng})["amenity"="place_of_worship"]["religion"="muslim"];
+  node(around:${radiusMeters},${lat},${lng})["amenity"="mosque"];
+  way(around:${radiusMeters},${lat},${lng})["amenity"="mosque"];
+  relation(around:${radiusMeters},${lat},${lng})["amenity"="mosque"];
+);
+out center tags;
+`;
+
+  const res = await fetch("https://overpass-api.de/api/interpreter", {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=UTF-8" },
+    body: query.trim()
+  });
+  if (!res.ok) throw new Error(`Nearby places API failed (${res.status})`);
+
+  const payload = await res.json();
+  const elements = Array.isArray(payload?.elements) ? payload.elements : [];
+  const mapped = elements
+    .map((element, index) => overpassElementToPlace(element, index))
+    .filter(Boolean);
+
+  const dedup = new Map();
+  mapped.forEach((place) => {
+    const key = `${place.name.toLowerCase()}|${place.latitude.toFixed(4)}|${place.longitude.toFixed(4)}`;
+    if (!dedup.has(key)) dedup.set(key, place);
+  });
+  return Array.from(dedup.values());
+}
+
+async function getPreferredNearbyPlaces(userCoords) {
+  const lat = toCoordNumber(userCoords?.latitude);
+  const lng = toCoordNumber(userCoords?.longitude);
+  if (lat === null || lng === null) return [];
+
+  const livePlaces = await getLiveNearbyPrayerPlaces(lat, lng, 5000);
+  const withDistance = sortPlacesByDistance(livePlaces, userCoords);
+  const shiaPlaces = withDistance.filter((place) => place.is_shia);
+  if (shiaPlaces.length > 0) return shiaPlaces;
+  return withDistance;
 }
 
 async function getLivePrayerTimes(dateStr) {
@@ -448,7 +620,18 @@ function wirePrayerLocationControls() {
         try {
           const today = getLocalIsoDate();
           const times = await getLivePrayerTimesByCoords(today, position.coords.latitude, position.coords.longitude);
-          renderData(state.lastData.pub, state.lastData.priv, times, state.lastData.places);
+          state.userCoords = {
+            latitude: Number(position.coords.latitude),
+            longitude: Number(position.coords.longitude)
+          };
+          let placesToRender = state.lastData.places;
+          try {
+            const nearby = await getPreferredNearbyPlaces(state.userCoords);
+            if (nearby.length > 0) placesToRender = nearby;
+          } catch {
+            // Keep existing places if live nearby lookup fails.
+          }
+          renderData(state.lastData.pub, state.lastData.priv, times, placesToRender);
           setPrayerLocationHelpVisible(false);
         } catch {
           setPrayerLocationHelpVisible(true, "Could not load prayer times from live location. Please try manual location.");
@@ -734,7 +917,7 @@ async function shareByType(shareType, shareValue, feedbackBtn) {
   }, 900);
 }
 
-function syncLibraryUrlState() {
+function syncLibraryUrlState(mode = "replace") {
   const url = new URL(window.location.href);
   url.searchParams.delete("library");
   url.searchParams.delete("section");
@@ -752,10 +935,22 @@ function syncLibraryUrlState() {
     }
   }
 
-  window.history.replaceState({}, "", url.toString());
+  const next = url.toString();
+  if (next === window.location.href) return;
+  if (mode === "push") {
+    window.history.pushState({ library: true }, "", next);
+  } else {
+    window.history.replaceState({}, "", next);
+  }
 }
 
 function applyLibraryStateFromUrl() {
+  state.libraryOpen = false;
+  state.libraryIndex = 0;
+  state.selectedSurah = null;
+  state.selectedMarsiya = null;
+  state.selectedMarsiyaSection = null;
+
   const params = new URLSearchParams(window.location.search);
   const library = params.get("library");
   if (library === "marsiya") {
@@ -1030,12 +1225,24 @@ function appendMarsiyaMobileSearch(parentEl) {
   const searchWrap = document.createElement("div");
   searchWrap.className = "marsiya-mobile-search";
 
+  const searchInputWrap = document.createElement("div");
+  searchInputWrap.className = "search-input-wrap";
+
   const searchInput = document.createElement("input");
   searchInput.type = "text";
   searchInput.id = "marsiya-mobile-search";
   searchInput.placeholder = "Search Marsiya...";
   searchInput.value = state.marsiyaSearchQuery || "";
-  searchWrap.appendChild(searchInput);
+  searchInputWrap.appendChild(searchInput);
+
+  const clearBtn = document.createElement("button");
+  clearBtn.type = "button";
+  clearBtn.className = "search-clear-btn hidden";
+  clearBtn.setAttribute("aria-label", "Clear Marsiya search");
+  clearBtn.setAttribute("title", "Clear search");
+  clearBtn.textContent = "×";
+  searchInputWrap.appendChild(clearBtn);
+  searchWrap.appendChild(searchInputWrap);
 
   const resultsEl = document.createElement("div");
   resultsEl.className = "marsiya-mobile-results";
@@ -1043,6 +1250,9 @@ function appendMarsiyaMobileSearch(parentEl) {
   parentEl.appendChild(searchWrap);
 
   let localSearchReqId = 0;
+  const syncClearButton = () => {
+    clearBtn.classList.toggle("hidden", !String(searchInput.value || "").trim());
+  };
   const renderResults = (rows) => {
     resultsEl.innerHTML = "";
     if (!rows.length) return;
@@ -1052,10 +1262,15 @@ function appendMarsiyaMobileSearch(parentEl) {
       btn.className = "marsiya-mobile-result-btn";
       btn.textContent = row.title;
       btn.addEventListener("click", () => {
+        searchInput.value = "";
+        state.marsiyaSearchQuery = "";
+        localSearchReqId += 1;
+        resultsEl.innerHTML = "";
+        syncClearButton();
         state.selectedMarsiya = row.id;
         state.selectedMarsiyaSection = row.sectionId;
         syncLibraryUrlState();
-        renderMarsiyaList(state.marsiyaSearchQuery);
+        renderMarsiyaList("");
         renderSelectedMarsiya(row.id);
       });
       resultsEl.appendChild(btn);
@@ -1065,6 +1280,7 @@ function appendMarsiyaMobileSearch(parentEl) {
   const runSearch = () => {
     const query = searchInput.value || "";
     state.marsiyaSearchQuery = query;
+    syncClearButton();
     const currentReq = ++localSearchReqId;
     if (!normalizeSearchText(query)) {
       resultsEl.innerHTML = "";
@@ -1081,6 +1297,16 @@ function appendMarsiyaMobileSearch(parentEl) {
   };
 
   searchInput.addEventListener("input", runSearch);
+  clearBtn.addEventListener("click", () => {
+    searchInput.value = "";
+    state.marsiyaSearchQuery = "";
+    localSearchReqId += 1;
+    resultsEl.innerHTML = "";
+    syncClearButton();
+    renderMarsiyaList("");
+    searchInput.focus();
+  });
+  syncClearButton();
   runSearch();
 }
 
@@ -1402,9 +1628,12 @@ function wireLibraryViewer() {
 
   const marsiyaList = document.getElementById("marsiya-list");
   const marsiyaSearch = document.getElementById("marsiya-search");
-  marsiyaSearch?.addEventListener("input", () => {
+  const marsiyaSearchClear = document.getElementById("marsiya-search-clear");
+  const runMarsiyaSearch = () => {
+    if (!marsiyaSearch) return;
     const query = marsiyaSearch.value;
     state.marsiyaSearchQuery = query;
+    marsiyaSearchClear?.classList.toggle("hidden", !String(query || "").trim());
     const reqId = ++marsiyaSearchRequestId;
     renderMarsiyaList(query);
     if (!normalizeSearchText(query)) return;
@@ -1418,13 +1647,29 @@ function wireLibraryViewer() {
       .catch(() => {
         // Keep basic title/section search if full-text indexing fails.
       });
+  };
+  marsiyaSearch?.addEventListener("input", runMarsiyaSearch);
+  marsiyaSearchClear?.addEventListener("click", () => {
+    if (!marsiyaSearch) return;
+    marsiyaSearch.value = "";
+    state.marsiyaSearchQuery = "";
+    marsiyaSearchRequestId += 1;
+    marsiyaSearchClear.classList.add("hidden");
+    renderMarsiyaList("");
+    marsiyaSearch.focus();
   });
+  marsiyaSearchClear?.classList.toggle("hidden", !String(marsiyaSearch?.value || "").trim());
   marsiyaList?.addEventListener("click", (event) => {
     const target = event.target;
     const btn = target && target.closest ? target.closest(".marsiya-item") : null;
     if (!btn) return;
     const itemId = btn.getAttribute("data-marsiya-id");
     if (!itemId) return;
+    if (marsiyaSearch) marsiyaSearch.value = "";
+    state.marsiyaSearchQuery = "";
+    marsiyaSearchRequestId += 1;
+    marsiyaSearchClear?.classList.add("hidden");
+    renderMarsiyaList("");
     const picked = getMarsiyaById(itemId);
     state.libraryOpen = true;
     state.libraryIndex = 5;
@@ -1650,20 +1895,33 @@ function normalizeIslamicMonth(value) {
   return monthAliases[raw] || "";
 }
 
+function getHijriOffsetDays() {
+  const value = Number(state.settings.hijriOffset);
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(-2, Math.min(2, Math.trunc(value)));
+}
+
+function getHijriAdjustedDate(date) {
+  const adjusted = new Date(date.getTime());
+  adjusted.setDate(adjusted.getDate() + getHijriOffsetDays());
+  return adjusted;
+}
+
 function getIslamicDateInfo(date) {
+  const adjustedDate = getHijriAdjustedDate(date);
   try {
     const parts = new Intl.DateTimeFormat("en-TN-u-ca-islamic", {
       day: "numeric",
       month: "long",
       year: "numeric"
-    }).formatToParts(date);
+    }).formatToParts(adjustedDate);
     const day = Number(parts.find((p) => p.type === "day")?.value ?? "0");
     const month = normalizeIslamicMonth(parts.find((p) => p.type === "month")?.value ?? "");
     const year = Number(parts.find((p) => p.type === "year")?.value ?? "0");
     if (day > 0 && day <= 30 && month && year >= 1300 && year <= 1700) return { day, month, year };
-    return getIslamicDateFallback(date);
+    return getIslamicDateFallback(adjustedDate);
   } catch {
-    return getIslamicDateFallback(date);
+    return getIslamicDateFallback(adjustedDate);
   }
 }
 
@@ -1855,11 +2113,13 @@ function applySettingsUI() {
   const fontSlider = document.getElementById("font-size-range");
   const fontValue = document.getElementById("font-size-value");
   const apiInput = document.getElementById("api-base-url");
+  const hijriOffsetSelect = document.getElementById("hijri-offset");
 
   if (languageSelect) languageSelect.value = state.settings.language;
   if (fontSlider) fontSlider.value = String(state.settings.fontSize);
   if (fontValue) fontValue.textContent = `${state.settings.fontSize}px`;
   if (apiInput) apiInput.value = state.settings.apiBaseUrl || "";
+  if (hijriOffsetSelect) hijriOffsetSelect.value = String(getHijriOffsetDays());
 }
 
 function wireSettings() {
@@ -1867,6 +2127,7 @@ function wireSettings() {
   const fontSlider = document.getElementById("font-size-range");
   const fontValue = document.getElementById("font-size-value");
   const apiInput = document.getElementById("api-base-url");
+  const hijriOffsetSelect = document.getElementById("hijri-offset");
   const saveApiBtn = document.getElementById("save-api-url");
 
   languageSelect?.addEventListener("change", (e) => {
@@ -1880,6 +2141,13 @@ function wireSettings() {
     saveJSON(STORAGE_KEYS.settings, state.settings);
     if (fontValue) fontValue.textContent = `${state.settings.fontSize}px`;
     applySettingsUI();
+  });
+
+  hijriOffsetSelect?.addEventListener("change", (e) => {
+    state.settings.hijriOffset = Number(e.target.value);
+    saveJSON(STORAGE_KEYS.settings, state.settings);
+    renderPrayerTracker();
+    renderTodayAmaal(parseIsoDate(state.amaalDate) || new Date());
   });
 
   saveApiBtn?.addEventListener("click", () => {
@@ -1906,11 +2174,7 @@ function renderPrayerTracker() {
     month: "short",
     year: "numeric"
   }).format(now);
-  const hijriTitle = new Intl.DateTimeFormat("en-TN-u-ca-islamic", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric"
-  }).format(now);
+  const hijriTitle = formatIslamicDateLabel(now);
 
   root.innerHTML = `
     <div class="tracker-tip">${t("trackerTip")}</div>
@@ -1923,7 +2187,7 @@ function renderPrayerTracker() {
   for (let day = 1; day <= daysInMonth; day += 1) {
     const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const dayDate = new Date(year, month, day);
-    const hijriDay = new Intl.DateTimeFormat("en-TN-u-ca-islamic", { day: "numeric" }).format(dayDate);
+    const hijriDay = getIslamicDateInfo(dayDate).day;
     const btn = document.createElement("button");
     btn.className = `day-chip ${state.prayerTracker[key] ? "active" : ""}`;
     btn.innerHTML = `<span class="day-chip-g">${day}</span><span class="day-chip-h">${hijriDay}</span>`;
@@ -2000,6 +2264,11 @@ function renderFallbackMap(publicEvents, privateEvents, places) {
     ...privateEvents.map((event) => ({ lat: event.latitude, lng: event.longitude, label: `Private: ${event.title}` })),
     ...places.map((place) => ({ lat: place.latitude, lng: place.longitude, label: `Prayer: ${place.name}` }))
   ];
+  const userLat = toCoordNumber(state.userCoords?.latitude);
+  const userLng = toCoordNumber(state.userCoords?.longitude);
+  if (userLat !== null && userLng !== null) {
+    points.push({ lat: userLat, lng: userLng, label: "You are here" });
+  }
 
   if (!points.length) {
     mapRoot.innerHTML = `<div class="fallback-empty">No map points available.</div>`;
@@ -2047,10 +2316,14 @@ function renderMap(publicEvents, privateEvents, places) {
     leafletMap = null;
   }
 
+  const userLat = toCoordNumber(state.userCoords?.latitude);
+  const userLng = toCoordNumber(state.userCoords?.longitude);
+  const hasUserCoords = userLat !== null && userLng !== null;
+
   const map = L.map("map", {
     zoomControl: true,
     scrollWheelZoom: false
-  }).setView([17.385, 78.4867], 12);
+  }).setView(hasUserCoords ? [userLat, userLng] : [17.385, 78.4867], hasUserCoords ? 13 : 12);
   leafletMap = map;
 
   let tileLoaded = false;
@@ -2067,17 +2340,45 @@ function renderMap(publicEvents, privateEvents, places) {
   tileLayer.addTo(map);
 
   const points = [];
-  const addMarker = (lat, lng, title, note) => {
-    const marker = L.marker([lat, lng]).addTo(map);
+  const addMarker = (lat, lng, title, note, icon = null) => {
+    const markerOptions = icon ? { icon } : undefined;
+    const marker = markerOptions ? L.marker([lat, lng], markerOptions).addTo(map) : L.marker([lat, lng]).addTo(map);
     marker.bindPopup(`<strong>${title}</strong><p class="marker-label">${note}</p>`);
     points.push([lat, lng]);
   };
 
-  publicEvents.forEach((event) => addMarker(event.latitude, event.longitude, `Public: ${event.title}`, formatWindow(event.start_time, event.end_time)));
-  privateEvents.forEach((event) => addMarker(event.latitude, event.longitude, `Private: ${event.title}`, formatWindow(event.start_time, event.end_time)));
-  places.forEach((place) => addMarker(place.latitude, place.longitude, `Prayer Place: ${place.name}`, place.address));
+  if (hasUserCoords) {
+    const userIcon = L.divIcon({
+      className: "user-location-marker",
+      html: '<span class="user-location-dot"></span>',
+      iconSize: [18, 18],
+      iconAnchor: [9, 9]
+    });
+    addMarker(userLat, userLng, "Your Location", "Used to show nearest prayer places", userIcon);
+  }
 
-  if (points.length > 0) {
+  publicEvents.forEach((event) =>
+    addMarker(event.latitude, event.longitude, `Public: ${event.title}`, formatWindow(event.start_time, event.end_time))
+  );
+  privateEvents.forEach((event) =>
+    addMarker(event.latitude, event.longitude, `Private: ${event.title}`, formatWindow(event.start_time, event.end_time))
+  );
+  places.forEach((place) => {
+    const distanceLabel = Number.isFinite(place.distanceKm) ? ` · ${place.distanceKm.toFixed(1)} km` : "";
+    addMarker(place.latitude, place.longitude, `Prayer Place: ${place.name}${distanceLabel}`, place.address);
+  });
+
+  if (hasUserCoords) {
+    const nearest = places
+      .filter((p) => Number.isFinite(p.distanceKm))
+      .slice(0, 5)
+      .map((p) => [toCoordNumber(p.latitude), toCoordNumber(p.longitude)])
+      .filter((point) => point[0] !== null && point[1] !== null);
+    const focusPoints = [[userLat, userLng], ...nearest];
+    if (focusPoints.length > 1) {
+      map.fitBounds(focusPoints, { padding: [30, 30], maxZoom: 14 });
+    }
+  } else if (points.length > 0) {
     map.fitBounds(points, { padding: [30, 30] });
   }
 
@@ -2092,6 +2393,7 @@ function renderMap(publicEvents, privateEvents, places) {
 
 function renderData(pub, priv, times, places) {
   state.lastData = { pub, priv, places, prayerTimes: times };
+  const placesByDistance = sortPlacesByDistance(places, state.userCoords);
 
   mountList("public-events", pub, (event) =>
     createItemCard(event.title, `${event.description}\n${formatWindow(event.start_time, event.end_time)}`, {
@@ -2103,10 +2405,14 @@ function renderData(pub, priv, times, places) {
 
   mountList("private-events", priv, (event) => createItemCard(event.title, `${event.description}\n${formatWindow(event.start_time, event.end_time)}`));
 
-  mountList("places", places, (place) =>
+  mountList("places", placesByDistance, (place) =>
     createItemCard(
       place.name,
-      `${place.address}\nWudu: ${place.has_wudu ? "Yes" : "No"} | Women area: ${place.has_women_area ? "Yes" : "No"}`,
+      `${place.address}${
+        place.is_shia ? "\nType: Shia place" : ""
+      }\nWudu: ${place.has_wudu ? "Yes" : "No"} | Women area: ${place.has_women_area ? "Yes" : "No"}${
+        Number.isFinite(place.distanceKm) ? `\nDistance: ${place.distanceKm.toFixed(1)} km` : ""
+      }`,
       {
         id: `place-${place.place_id}`,
         title: place.name,
@@ -2134,7 +2440,7 @@ function renderData(pub, priv, times, places) {
     setPrayerLocationHelpVisible(entries.length === 0 || !hasPrayerTimes(times));
   }
 
-  renderMap(pub, priv, places);
+  renderMap(pub, priv, placesByDistance);
   renderFavorites();
   renderBookmark();
   renderPrayerTracker();
@@ -2326,6 +2632,23 @@ async function load() {
     }
 
     renderData(pub, priv, times, places);
+    getCurrentPositionForMap()
+      .then((coords) => {
+        if (!coords) return;
+        state.userCoords = coords;
+        getPreferredNearbyPlaces(coords)
+          .then((nearbyPlaces) => {
+            if (nearbyPlaces.length > 0) {
+              renderData(state.lastData.pub, state.lastData.priv, state.lastData.prayerTimes ?? times, nearbyPlaces);
+              return;
+            }
+            renderData(state.lastData.pub, state.lastData.priv, state.lastData.prayerTimes ?? times, state.lastData.places);
+          })
+          .catch(() => {
+            renderData(state.lastData.pub, state.lastData.priv, state.lastData.prayerTimes ?? times, state.lastData.places);
+          });
+      })
+      .catch(() => {});
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     ["public-events", "private-events", "prayer-times", "places", "map", "favorites", "bookmark-view"].forEach((id) => {
