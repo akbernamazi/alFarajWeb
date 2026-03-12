@@ -1,4 +1,4 @@
-const CACHE_NAME = "aza-web-shell-v6";
+const CACHE_NAME = "aza-web-shell-v7";
 const SHELL_ASSETS = [
   "./",
   "./index.html",
@@ -31,6 +31,12 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
@@ -47,14 +53,13 @@ self.addEventListener("fetch", (event) => {
 
   if (isStaticAsset) {
     event.respondWith(
-      caches.match(event.request).then((cached) => {
-        if (cached) return cached;
-        return fetch(event.request).then((response) => {
+      fetch(event.request)
+        .then((response) => {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           return response;
-        });
-      })
+        })
+        .catch(() => caches.match(event.request))
     );
     return;
   }

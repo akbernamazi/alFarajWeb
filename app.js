@@ -937,7 +937,7 @@ function resolveSharePayload(shareType, shareValue) {
     const shareUrl = getAmaalShareUrl(monthKey, dayIndex);
     return {
       title: entry.title,
-      text: `Read Amaal: ${label}\n${shareUrl}`,
+      text: `Read Amaal: ${label}`,
       url: shareUrl
     };
   }
@@ -1044,7 +1044,13 @@ function applyLibraryStateFromUrl() {
   }
 
   if (library === "amaal") {
-    const month = String(params.get("month") || "");
+    const monthParam = params.get("month");
+    if (!monthParam) {
+      pendingAmaalRoute = { mode: "index" };
+      currentAmaalRoute = { monthKey: null, dayIndex: null };
+      return;
+    }
+    const month = String(monthParam || "");
     const dayRaw = params.get("day");
     const monthKey = HIJRI_MONTH_ORDER.includes(month) ? month : getCurrentHijriMonthKey();
     const dayIndex = resolveAmaalDayForMonth(monthKey, dayRaw);
@@ -2465,6 +2471,43 @@ function renderAmaalMonthIndexInSidePanel(monthKey) {
   });
 }
 
+function renderAmaalReaderIndexList(root, filter = "") {
+  if (!root) return;
+  root.innerHTML = "";
+  const query = String(filter || "").trim();
+
+  if (query) {
+    const rows = buildAmaalSearchRows(query);
+    if (!rows.length) {
+      root.appendChild(createItemCard("No matches", "No Amaal entries match your search."));
+      return;
+    }
+
+    rows.forEach((row) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "item marsiya-index-item marsiya-index-button";
+      btn.setAttribute("data-amaal-reader-nav", row.type);
+      btn.setAttribute("data-amaal-month", row.monthKey);
+      if (row.type === "day") btn.setAttribute("data-amaal-day-index", String(row.dayIndex));
+      btn.textContent = row.label;
+      root.appendChild(btn);
+    });
+    return;
+  }
+
+  HIJRI_MONTH_ORDER.forEach((key) => {
+    const count = (SHIA_MONTHLY_AMAAL_GUIDE[key]?.importantDays || []).length;
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "item marsiya-index-item marsiya-index-button";
+    row.setAttribute("data-amaal-reader-nav", "month-index");
+    row.setAttribute("data-amaal-month", key);
+    row.textContent = `${HIJRI_MONTH_LABELS[key]} (${count})`;
+    root.appendChild(row);
+  });
+}
+
 function renderAmaalIndexInSidePanel() {
   const titleEl = document.getElementById("library-title");
   const metaEl = document.getElementById("library-meta");
@@ -2485,17 +2528,37 @@ function renderAmaalIndexInSidePanel() {
   metaEl.textContent = "Index";
   contentEl.innerHTML = "";
   contentEl.appendChild(createReaderCrumbs([{ label: "Amaal", active: true }]));
+  const searchWrap = document.createElement("div");
+  searchWrap.className = "search-input-wrap";
+  searchWrap.innerHTML = `
+    <input id="amaal-reader-search" placeholder="Search Amaal..." />
+    <button id="amaal-reader-search-clear" class="search-clear-btn hidden" type="button" aria-label="Clear Amaal search" title="Clear search">×</button>
+  `;
+  contentEl.appendChild(searchWrap);
 
-  HIJRI_MONTH_ORDER.forEach((key) => {
-    const count = (SHIA_MONTHLY_AMAAL_GUIDE[key]?.importantDays || []).length;
-    const row = document.createElement("button");
-    row.type = "button";
-    row.className = "item marsiya-index-item marsiya-index-button";
-    row.setAttribute("data-amaal-reader-nav", "month-index");
-    row.setAttribute("data-amaal-month", key);
-    row.textContent = `${HIJRI_MONTH_LABELS[key]} (${count})`;
-    contentEl.appendChild(row);
+  const list = document.createElement("div");
+  list.className = "list";
+  list.id = "amaal-reader-index-list";
+  contentEl.appendChild(list);
+
+  const searchInput = searchWrap.querySelector("#amaal-reader-search");
+  const clearBtn = searchWrap.querySelector("#amaal-reader-search-clear");
+  const runSearch = () => {
+    const query = searchInput?.value || "";
+    clearBtn?.classList.toggle("hidden", !String(query || "").trim());
+    renderAmaalReaderIndexList(list, query);
+  };
+
+  searchInput?.addEventListener("input", runSearch);
+  clearBtn?.addEventListener("click", () => {
+    if (!searchInput) return;
+    searchInput.value = "";
+    clearBtn.classList.add("hidden");
+    renderAmaalReaderIndexList(list, "");
+    searchInput.focus();
   });
+
+  renderAmaalReaderIndexList(list, "");
 }
 
 function buildAmaalSearchRows(query) {
@@ -3184,7 +3247,37 @@ function renderAllFromState() {
 
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
-  navigator.serviceWorker.register("./sw.js").catch(() => {});
+  navigator.serviceWorker
+    .register("./sw.js")
+    .then((registration) => {
+      const activateUpdate = () => {
+        if (registration.waiting) {
+          registration.waiting.postMessage("SKIP_WAITING");
+        }
+      };
+
+      registration.addEventListener("updatefound", () => {
+        const newWorker = registration.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener("statechange", () => {
+          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+            activateUpdate();
+          }
+        });
+      });
+
+      if (registration.waiting) activateUpdate();
+      registration.update().catch(() => {});
+      window.setInterval(() => registration.update().catch(() => {}), 60 * 1000);
+    })
+    .catch(() => {});
+
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
+  });
 }
 
 const INSTALL_PROMPT_LAST_SHOWN_KEY = "alfaraj_install_prompt_last_shown";
@@ -3345,9 +3438,13 @@ async function load() {
   renderTodayAmaal(parseIsoDate(state.amaalDate) || new Date());
   renderMonthlyAmaalGuide(state.amaalMonth || getCurrentHijriMonthKey());
   if (pendingAmaalRoute) {
-    const { monthKey, dayIndex } = pendingAmaalRoute;
-    if (dayIndex === null) renderAmaalInSidePanel(getAmaalEntry(monthKey, null));
-    else renderAmaalInSidePanel(getAmaalEntry(monthKey, dayIndex));
+    if (pendingAmaalRoute.mode === "index") {
+      renderAmaalIndexInSidePanel();
+    } else {
+      const { monthKey, dayIndex } = pendingAmaalRoute;
+      if (dayIndex === null) renderAmaalInSidePanel(getAmaalEntry(monthKey, null));
+      else renderAmaalInSidePanel(getAmaalEntry(monthKey, dayIndex));
+    }
   }
 
   try {
