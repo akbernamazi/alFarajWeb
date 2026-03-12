@@ -201,7 +201,8 @@ let leafletMap = null;
 let surahRequestId = 0;
 let marsiyaRequestId = 0;
 let deferredInstallPrompt = null;
-const mobilePrayerPanelQuery = window.matchMedia("(max-width: 640px)");
+const mobilePrayerPanelQuery = window.matchMedia("(max-width: 900px)");
+const sidebarMobileQuery = window.matchMedia("(max-width: 900px)");
 
 function t(key) {
   const lang = state.settings.language in I18N ? state.settings.language : "en";
@@ -488,7 +489,7 @@ function wireMobileSidebar() {
   const nav = document.getElementById("side-nav");
   if (!toggleBtn || !closeBtn || !backdrop || !nav) return;
 
-  const mobileQuery = window.matchMedia("(max-width: 640px)");
+  const mobileQuery = sidebarMobileQuery;
 
   const openSidebar = () => {
     if (!mobileQuery.matches) return;
@@ -1222,7 +1223,7 @@ function wireLibraryViewer() {
     summary?.addEventListener("click", () => {
       if (!Number.isNaN(idx)) {
         toggleLibrarySection(idx);
-        if (idx === 5 && window.matchMedia("(max-width: 640px)").matches) {
+        if (sidebarMobileQuery.matches) {
           closeSidebarDrawer();
         }
       }
@@ -1266,7 +1267,7 @@ function wireLibraryViewer() {
     setLibraryPanelVisibility(true);
     setSurahLangControlsVisible(false);
     renderLibrarySection(5);
-    if (window.matchMedia("(max-width: 640px)").matches) {
+    if (sidebarMobileQuery.matches) {
       closeSidebarDrawer();
     }
   });
