@@ -195,11 +195,14 @@ const state = {
   selectedMarsiya: null,
   selectedMarsiyaSection: null,
   marsiyaCache: {},
-  marsiyaSections: DEFAULT_MARSIYA_SECTIONS
+  marsiyaSections: DEFAULT_MARSIYA_SECTIONS,
+  marsiyaSearchDocs: {}
 };
 let leafletMap = null;
 let surahRequestId = 0;
 let marsiyaRequestId = 0;
+let marsiyaSearchRequestId = 0;
+let marsiyaSearchIndexPromise = null;
 let deferredInstallPrompt = null;
 const mobilePrayerPanelQuery = window.matchMedia("(max-width: 900px)");
 const sidebarMobileQuery = window.matchMedia("(max-width: 900px)");
@@ -589,17 +592,28 @@ function renderQuranSurahList(filter = "") {
   });
 }
 
-function renderMarsiyaList() {
+function renderMarsiyaList(filter = "", fullTextMatches = null) {
   const root = document.getElementById("marsiya-list");
   if (!root) return;
   root.innerHTML = "";
+  const q = String(filter || "").trim().toLowerCase();
   const selectedFromPoem = state.selectedMarsiya ? getMarsiyaById(state.selectedMarsiya)?.sectionId : null;
   const selectedSectionId = state.selectedMarsiyaSection || selectedFromPoem;
+  let sectionCount = 0;
 
   state.marsiyaSections.forEach((section) => {
+    const poems = fullTextMatches
+      ? section.poems.filter((item) => fullTextMatches.has(item.id))
+      : q
+        ? (section.title.toLowerCase().includes(q)
+          ? section.poems
+          : section.poems.filter((item) => item.title.toLowerCase().includes(q)))
+        : section.poems;
+    if (!poems.length) return;
+
     const block = document.createElement("details");
     block.className = "marsiya-section";
-    block.open = selectedSectionId === section.id;
+    block.open = q ? true : selectedSectionId === section.id;
 
     const summary = document.createElement("summary");
     summary.textContent = section.title;
@@ -608,7 +622,7 @@ function renderMarsiyaList() {
     const body = document.createElement("div");
     body.className = "marsiya-section-list";
 
-    section.poems.forEach((item, index) => {
+    poems.forEach((item, index) => {
       const btn = document.createElement("button");
       btn.className = "marsiya-item";
       if (state.libraryOpen && state.libraryIndex === 5 && state.selectedMarsiya === item.id) {
@@ -619,7 +633,7 @@ function renderMarsiyaList() {
       btn.textContent = item.title;
       body.appendChild(btn);
 
-      if (index < section.poems.length - 1) {
+      if (index < poems.length - 1) {
         const divider = document.createElement("hr");
         divider.className = "marsiya-divider";
         body.appendChild(divider);
@@ -628,7 +642,15 @@ function renderMarsiyaList() {
 
     block.appendChild(body);
     root.appendChild(block);
+    sectionCount += 1;
   });
+
+  if (sectionCount === 0) {
+    const empty = document.createElement("p");
+    empty.className = "marsiya-empty";
+    empty.textContent = "No Marsiya matches your search.";
+    root.appendChild(empty);
+  }
 }
 
 function getMarsiyaById(itemId) {
@@ -935,6 +957,47 @@ function formatMarsiyaForDisplay(text) {
   });
 
   return formatted.join("\n\n");
+}
+
+function normalizeSearchText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function ensureMarsiyaSearchIndex() {
+  if (marsiyaSearchIndexPromise) return marsiyaSearchIndexPromise;
+
+  marsiyaSearchIndexPromise = (async () => {
+    const docs = {};
+    for (const section of state.marsiyaSections) {
+      for (const item of section.poems) {
+        let textContent = "";
+        try {
+          textContent = (await fetchMarsiyaText(item)) || "";
+        } catch {
+          textContent = "";
+        }
+        docs[item.id] = normalizeSearchText(`${section.title} ${item.title} ${textContent}`);
+      }
+    }
+    state.marsiyaSearchDocs = docs;
+  })();
+
+  return marsiyaSearchIndexPromise;
+}
+
+function getMarsiyaSearchMatches(query) {
+  const normalized = normalizeSearchText(query);
+  if (!normalized) return null;
+
+  const matches = new Set();
+  Object.entries(state.marsiyaSearchDocs).forEach(([id, doc]) => {
+    if (doc.includes(normalized)) matches.add(id);
+  });
+  return matches;
 }
 
 async function renderSelectedMarsiya(itemId) {
@@ -1253,6 +1316,23 @@ function wireLibraryViewer() {
   });
 
   const marsiyaList = document.getElementById("marsiya-list");
+  const marsiyaSearch = document.getElementById("marsiya-search");
+  marsiyaSearch?.addEventListener("input", () => {
+    const query = marsiyaSearch.value;
+    const reqId = ++marsiyaSearchRequestId;
+    renderMarsiyaList(query);
+    if (!normalizeSearchText(query)) return;
+
+    ensureMarsiyaSearchIndex()
+      .then(() => {
+        if (reqId !== marsiyaSearchRequestId) return;
+        const matches = getMarsiyaSearchMatches(query);
+        renderMarsiyaList(query, matches);
+      })
+      .catch(() => {
+        // Keep basic title/section search if full-text indexing fails.
+      });
+  });
   marsiyaList?.addEventListener("click", (event) => {
     const target = event.target;
     const btn = target && target.closest ? target.closest(".marsiya-item") : null;
