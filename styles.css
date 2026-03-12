@@ -410,6 +410,7 @@ body.marsiya-fullscreen #library-panel::-webkit-scrollbar-thumb:hover {
 
 #quran-surah-search,
 #marsiya-search,
+#amaal-search,
 #manual-city,
 #manual-country {
   width: 100%;
@@ -427,6 +428,11 @@ body.marsiya-fullscreen #library-panel::-webkit-scrollbar-thumb:hover {
 #quran-surah-search,
 #marsiya-search {
   margin-bottom: 8px;
+}
+
+#amaal-search {
+  margin-bottom: 8px;
+  padding-right: 36px;
 }
 
 .search-input-wrap {
@@ -456,6 +462,7 @@ body.marsiya-fullscreen #library-panel::-webkit-scrollbar-thumb:hover {
 
 #quran-surah-search::placeholder,
 #marsiya-search::placeholder,
+#amaal-search::placeholder,
 #manual-city::placeholder,
 #manual-country::placeholder {
   color: var(--muted);
@@ -463,6 +470,7 @@ body.marsiya-fullscreen #library-panel::-webkit-scrollbar-thumb:hover {
 
 #quran-surah-search:focus,
 #marsiya-search:focus,
+#amaal-search:focus,
 #manual-city:focus,
 #manual-country:focus {
   outline: none;
@@ -545,6 +553,43 @@ body.marsiya-fullscreen #library-panel::-webkit-scrollbar-thumb:hover {
   display: grid;
   gap: 6px;
   padding: 0 8px 8px;
+}
+
+.amaal-month-section {
+  border: 1px solid rgba(143, 183, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.amaal-month-section > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.amaal-month-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.amaal-month-days {
+  display: grid;
+  gap: 6px;
+  padding: 0 8px 8px;
+}
+
+.amaal-day-item {
+  border-radius: 9px;
+  border: 1px solid rgba(143, 183, 255, 0.22);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  padding: 7px 8px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.8rem;
+  width: 100%;
 }
 
 .marsiya-divider {
@@ -694,17 +739,23 @@ body.marsiya-fullscreen #library-panel::-webkit-scrollbar-thumb:hover {
 }
 
 .side-item {
-  border: 1px solid var(--stroke);
-  border-radius: 14px;
-  background: rgba(9, 18, 32, 0.52);
+  border: 1px solid rgba(143, 183, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .side-item > summary {
   list-style: none;
   cursor: pointer;
-  padding: 12px 14px;
+  padding: 8px 10px;
   font-family: "Outfit", sans-serif;
-  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.side-item > summary:hover {
+  color: var(--accent);
 }
 
 .side-item > summary::-webkit-details-marker {
@@ -714,11 +765,12 @@ body.marsiya-fullscreen #library-panel::-webkit-scrollbar-thumb:hover {
 .side-item > .panel {
   margin: 0;
   border: 0;
-  border-top: 1px solid rgba(143, 183, 255, 0.16);
-  border-radius: 0 0 14px 14px;
+  border-top: 1px solid rgba(143, 183, 255, 0.2);
+  border-radius: 0 0 10px 10px;
   background: transparent;
   backdrop-filter: none;
   animation: none;
+  padding: 10px 8px 8px;
 }
 
 .meta {
@@ -824,6 +876,12 @@ body.marsiya-content-only #library-panel #library-content {
   color: var(--muted);
   font-size: 0.84rem;
   line-height: 1.45;
+}
+
+.item p a {
+  color: #8fe7ff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .surah-ayah-card {

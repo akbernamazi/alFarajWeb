@@ -9,6 +9,9 @@ const STORAGE_KEYS = {
   bookmark: "aza.bookmark.v1",
   tracker: "aza.tracker.v1",
   amaalDate: "aza.amaal.date.v1",
+  amaalMonth: "aza.amaal.month.v1",
+  amaalCache: "aza.amaal.cache.v1",
+  amaalTracking: "aza.amaal.tracking.v1",
   apiCachePrefix: "aza.api.cache.",
   locationPrompted: "aza.location.prompted.v1",
   livePrayerCache: "aza.live.prayer.cache.v1"
@@ -185,6 +188,10 @@ const state = {
   bookmark: loadJSON(STORAGE_KEYS.bookmark, null),
   prayerTracker: loadJSON(STORAGE_KEYS.tracker, {}),
   amaalDate: loadJSON(STORAGE_KEYS.amaalDate, getLocalIsoDate()),
+  amaalMonth: loadJSON(STORAGE_KEYS.amaalMonth, ""),
+  amaalCache: loadJSON(STORAGE_KEYS.amaalCache, {}),
+  amaalTracking: loadJSON(STORAGE_KEYS.amaalTracking, {}),
+  amaalSearchQuery: "",
   amaalShowComplete: false,
   lastData: { pub: [], priv: [], places: [], prayerTimes: null },
   locationSuggestions: {},
@@ -208,6 +215,8 @@ let surahRequestId = 0;
 let marsiyaRequestId = 0;
 let marsiyaSearchRequestId = 0;
 let marsiyaSearchIndexPromise = null;
+let pendingAmaalRoute = null;
+let currentAmaalRoute = null;
 let deferredInstallPrompt = null;
 const mobilePrayerPanelQuery = window.matchMedia("(max-width: 900px)");
 const sidebarMobileQuery = window.matchMedia("(max-width: 900px)");
@@ -865,6 +874,36 @@ function getQuranSurahShareUrl(surahNo) {
   return url.toString();
 }
 
+function getAmaalShareUrl(monthKey, dayIndex = null) {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("section");
+  url.searchParams.delete("marsiya");
+  url.searchParams.delete("surah");
+  url.searchParams.set("library", "amaal");
+  url.searchParams.set("month", String(monthKey));
+  if (dayIndex !== null && dayIndex !== undefined && String(dayIndex).length) {
+    url.searchParams.set("day", String(dayIndex));
+  } else {
+    url.searchParams.delete("day");
+  }
+  return url.toString();
+}
+
+function resolveAmaalDayForMonth(monthKey, rawDay) {
+  if (rawDay === null || rawDay === undefined || rawDay === "") return null;
+  const key = HIJRI_MONTH_ORDER.includes(monthKey) ? monthKey : getCurrentHijriMonthKey();
+  const day = Number(rawDay);
+  if (Number.isNaN(day)) return null;
+  const importantDays = SHIA_MONTHLY_AMAAL_GUIDE[key]?.importantDays || [];
+  const exact = importantDays.find((item) => Number(item.day) === day);
+  if (exact) return Number(exact.day);
+  // Backward compatibility: old links used zero-based index.
+  if (day >= 0 && day < importantDays.length) {
+    return Number(importantDays[day]?.day);
+  }
+  return null;
+}
+
 function resolveSharePayload(shareType, shareValue) {
   if (shareType === "marsiya") {
     const active = shareValue ? getMarsiyaById(shareValue) : null;
@@ -885,6 +924,21 @@ function resolveSharePayload(shareType, shareValue) {
       title,
       text: `Read ${title} on Al Faraj`,
       url: getQuranSurahShareUrl(surahNo)
+    };
+  }
+
+  if (shareType === "amaal") {
+    const raw = String(shareValue || "");
+    const [monthKey, dayRaw] = raw.split("|");
+    if (!HIJRI_MONTH_ORDER.includes(monthKey)) return null;
+    const dayIndex = resolveAmaalDayForMonth(monthKey, dayRaw);
+    const entry = getAmaalEntry(monthKey, dayIndex);
+    const label = entry.label || HIJRI_MONTH_LABELS[monthKey];
+    const shareUrl = getAmaalShareUrl(monthKey, dayIndex);
+    return {
+      title: entry.title,
+      text: `Read Amaal: ${label}\n${shareUrl}`,
+      url: shareUrl
     };
   }
 
@@ -924,6 +978,8 @@ function syncLibraryUrlState(mode = "replace") {
   url.searchParams.delete("section");
   url.searchParams.delete("marsiya");
   url.searchParams.delete("surah");
+  url.searchParams.delete("month");
+  url.searchParams.delete("day");
 
   if (state.libraryOpen) {
     if (state.libraryIndex === 5) {
@@ -933,6 +989,12 @@ function syncLibraryUrlState(mode = "replace") {
     } else if (state.libraryIndex === 0 && state.selectedSurah) {
       url.searchParams.set("library", "quran");
       url.searchParams.set("surah", String(state.selectedSurah));
+    }
+  } else if (currentAmaalRoute) {
+    url.searchParams.set("library", "amaal");
+    if (currentAmaalRoute.monthKey) url.searchParams.set("month", String(currentAmaalRoute.monthKey));
+    if (currentAmaalRoute.dayIndex !== null && currentAmaalRoute.dayIndex !== undefined) {
+      url.searchParams.set("day", String(currentAmaalRoute.dayIndex));
     }
   }
 
@@ -951,6 +1013,8 @@ function applyLibraryStateFromUrl() {
   state.selectedSurah = null;
   state.selectedMarsiya = null;
   state.selectedMarsiyaSection = null;
+  pendingAmaalRoute = null;
+  currentAmaalRoute = null;
 
   const params = new URLSearchParams(window.location.search);
   const library = params.get("library");
@@ -976,18 +1040,55 @@ function applyLibraryStateFromUrl() {
       state.libraryIndex = 0;
       state.selectedSurah = surah;
     }
+    return;
+  }
+
+  if (library === "amaal") {
+    const month = String(params.get("month") || "");
+    const dayRaw = params.get("day");
+    const monthKey = HIJRI_MONTH_ORDER.includes(month) ? month : getCurrentHijriMonthKey();
+    const dayIndex = resolveAmaalDayForMonth(monthKey, dayRaw);
+    pendingAmaalRoute = {
+      monthKey,
+      dayIndex
+    };
+    currentAmaalRoute = pendingAmaalRoute;
+    state.amaalMonth = monthKey;
   }
 }
 
-function createMarsiyaCrumb(label, type, value, active = false) {
+function createReaderCrumb({ label, active = false, dataset = {} }) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "marsiya-crumb";
   if (active) btn.classList.add("active");
   btn.textContent = label;
-  btn.setAttribute("data-marsiya-nav", type);
-  if (value) btn.setAttribute("data-marsiya-nav-value", value);
+  Object.entries(dataset || {}).forEach(([key, value]) => {
+    if (value === null || value === undefined || value === "") return;
+    btn.setAttribute(`data-${key}`, String(value));
+  });
   return btn;
+}
+
+function createReaderCrumbs(items) {
+  const nav = document.createElement("div");
+  nav.className = "marsiya-crumbs";
+  items.forEach((item, idx) => {
+    if (idx > 0) nav.appendChild(document.createTextNode("›"));
+    nav.appendChild(createReaderCrumb(item));
+  });
+  return nav;
+}
+
+function createMarsiyaCrumb(label, type, value, active = false) {
+  return createReaderCrumb({
+    label,
+    active,
+    dataset: {
+      "marsiya-nav": type,
+      "marsiya-nav-value": value || ""
+    }
+  });
 }
 
 function renderMarsiyaIndex() {
@@ -1002,11 +1103,11 @@ function renderMarsiyaIndex() {
   setMarsiyaFullscreenMode(false);
   setMarsiyaContentOnlyMode(false);
   contentEl.innerHTML = "";
-
-  const nav = document.createElement("div");
-  nav.className = "marsiya-crumbs";
-  nav.appendChild(createMarsiyaCrumb("Index", "index", "", true));
-  contentEl.appendChild(nav);
+  contentEl.appendChild(
+    createReaderCrumbs([
+      { label: "Marsiya", active: true, dataset: { "marsiya-nav": "index" } }
+    ])
+  );
   appendMarsiyaMobileSearch(contentEl);
 
   state.marsiyaSections.forEach((section) => {
@@ -1049,13 +1150,12 @@ function renderMarsiyaSection(sectionId) {
   titleEl.textContent = `Marsiya · ${section.title}`;
   metaEl.textContent = "Section";
   contentEl.innerHTML = "";
-
-  const nav = document.createElement("div");
-  nav.className = "marsiya-crumbs";
-  nav.appendChild(createMarsiyaCrumb("Index", "index"));
-  nav.appendChild(document.createTextNode("›"));
-  nav.appendChild(createMarsiyaCrumb(section.title, "section", section.id, true));
-  contentEl.appendChild(nav);
+  contentEl.appendChild(
+    createReaderCrumbs([
+      { label: "Marsiya", dataset: { "marsiya-nav": "index" } },
+      { label: section.title, active: true, dataset: { "marsiya-nav": "section", "marsiya-nav-value": section.id } }
+    ])
+  );
   appendMarsiyaMobileSearch(contentEl);
 
   section.poems.forEach((poem) => {
@@ -1349,13 +1449,11 @@ async function renderSelectedMarsiya(itemId) {
     const reader = document.createElement("article");
     reader.className = "item";
 
-    const nav = document.createElement("div");
-    nav.className = "marsiya-crumbs";
-    nav.appendChild(createMarsiyaCrumb("Index", "index"));
-    nav.appendChild(document.createTextNode("›"));
-    nav.appendChild(createMarsiyaCrumb(item.sectionTitle, "section", item.sectionId));
-    nav.appendChild(document.createTextNode("›"));
-    nav.appendChild(createMarsiyaCrumb(item.title, "poem", item.id, true));
+    const nav = createReaderCrumbs([
+      { label: "Marsiya", dataset: { "marsiya-nav": "index" } },
+      { label: item.sectionTitle, dataset: { "marsiya-nav": "section", "marsiya-nav-value": item.sectionId } },
+      { label: item.title, active: true, dataset: { "marsiya-nav": "poem", "marsiya-nav-value": item.id } }
+    ]);
 
     if (window.matchMedia("(max-width: 900px)").matches) {
       const shareInlineBtn = document.createElement("button");
@@ -1462,7 +1560,10 @@ function createSurahAyahNode(row) {
 function renderSurahContent(data) {
   const contentEl = document.getElementById("library-content");
   if (!contentEl) return;
+  const existingCrumbs = contentEl.querySelector(".marsiya-crumbs");
+  const crumbsClone = existingCrumbs ? existingCrumbs.cloneNode(true) : null;
   contentEl.innerHTML = "";
+  if (crumbsClone) contentEl.appendChild(crumbsClone);
   data.ayahs.forEach((row) => contentEl.appendChild(createSurahAyahNode(row)));
 }
 
@@ -1478,6 +1579,13 @@ async function renderSelectedSurah(surahNo) {
   setMarsiyaContentOnlyMode(false);
   titleEl.textContent = `Quran · ${surahNo}. ${surahName}`;
   metaEl.textContent = "Arabic · Urdu · English";
+  contentEl.innerHTML = "";
+  contentEl.appendChild(
+    createReaderCrumbs([
+      { label: "Quran" },
+      { label: `${surahNo}. ${surahName}`, active: true }
+    ])
+  );
 
   const cached = state.surahCache[surahNo];
   if (cached) {
@@ -1485,7 +1593,6 @@ async function renderSelectedSurah(surahNo) {
     return;
   }
 
-  contentEl.innerHTML = "";
   contentEl.appendChild(createItemCard("Loading", "Fetching Surah in Arabic, Urdu, and English..."));
   const requestId = ++surahRequestId;
 
@@ -1506,6 +1613,7 @@ async function renderSelectedSurah(surahNo) {
 function renderLibrarySection(index = 0) {
   const normalized = ((Number(index) % LIBRARY_SECTIONS.length) + LIBRARY_SECTIONS.length) % LIBRARY_SECTIONS.length;
   state.libraryIndex = normalized;
+  currentAmaalRoute = null;
   syncLibraryUrlState();
   const current = LIBRARY_SECTIONS[normalized];
 
@@ -1546,6 +1654,7 @@ function renderLibrarySection(index = 0) {
   titleEl.textContent = current.title;
   metaEl.textContent = current.meta;
   contentEl.innerHTML = "";
+  contentEl.appendChild(createReaderCrumbs([{ label: current.title, active: true }]));
   if (normalized === 0) setLibraryShareButton(null);
   if (normalized === 5) {
     renderMarsiyaIndex();
@@ -1573,6 +1682,7 @@ function toggleLibrarySection(index) {
   const normalized = ((Number(index) % LIBRARY_SECTIONS.length) + LIBRARY_SECTIONS.length) % LIBRARY_SECTIONS.length;
   if (state.libraryOpen && state.libraryIndex === normalized) {
     state.libraryOpen = false;
+    currentAmaalRoute = null;
     setLibraryPanelVisibility(false);
     setMarsiyaFullscreenMode(false);
     setMarsiyaContentOnlyMode(false);
@@ -1687,6 +1797,35 @@ function wireLibraryViewer() {
   const libraryContent = document.getElementById("library-content");
   libraryContent?.addEventListener("click", (event) => {
     const target = event.target;
+    const amaalBtn = target && target.closest ? target.closest("[data-amaal-reader-nav]") : null;
+    if (amaalBtn) {
+      const navType = amaalBtn.getAttribute("data-amaal-reader-nav");
+      const month = amaalBtn.getAttribute("data-amaal-month") || state.amaalMonth || getCurrentHijriMonthKey();
+      if (navType === "index") {
+        renderAmaalIndexInSidePanel();
+        return;
+      }
+      if (navType === "month-index") {
+        state.amaalMonth = month;
+        saveJSON(STORAGE_KEYS.amaalMonth, month);
+        renderAmaalMonthIndexInSidePanel(month);
+        return;
+      }
+      if (navType === "month") {
+        state.amaalMonth = month;
+        saveJSON(STORAGE_KEYS.amaalMonth, month);
+        renderAmaalInSidePanel(getAmaalEntry(month, null));
+        return;
+      }
+      if (navType === "day") {
+        const dayIndex = Number(amaalBtn.getAttribute("data-amaal-day-index") || "-1");
+        state.amaalMonth = month;
+        saveJSON(STORAGE_KEYS.amaalMonth, month);
+        renderAmaalInSidePanel(getAmaalEntry(month, dayIndex));
+        return;
+      }
+    }
+
     const btn = target && target.closest ? target.closest("[data-marsiya-nav]") : null;
     if (!btn || state.libraryIndex !== 5 || !state.libraryOpen) return;
     const navType = btn.getAttribute("data-marsiya-nav");
@@ -1722,9 +1861,9 @@ function wireLibraryViewer() {
 
   const libraryShareBtn = document.getElementById("library-share-btn");
   libraryShareBtn?.addEventListener("click", () => {
-    if (!state.libraryOpen) return;
     const shareType = libraryShareBtn.getAttribute("data-share-type");
     const shareValue = libraryShareBtn.getAttribute("data-share-value");
+    if (!shareType || !shareValue) return;
     shareByType(shareType, shareValue, libraryShareBtn).catch(() => {});
   });
 
@@ -1781,19 +1920,39 @@ function toggleFavorite(item) {
   renderFavorites();
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatCardDescription(description) {
+  const escaped = escapeHtml(description);
+  const linked = escaped.replace(
+    /(https?:\/\/[^\s<]+)/g,
+    '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+  );
+  return linked.replace(/\n/g, "<br>");
+}
+
 function createItemCard(title, description, favoriteItem) {
   const el = document.createElement("article");
   el.className = "item";
   const hasTitle = Boolean(title && String(title).trim());
+  const safeTitle = escapeHtml(title);
+  const safeDescription = formatCardDescription(description);
 
   const star = favoriteItem
     ? `<button class="star-btn" data-fav-id="${favoriteItem.id}" title="Toggle favorite">${isFavorite(favoriteItem.id) ? "★" : "☆"}</button>`
     : "";
   const head = hasTitle || star
-    ? `<div class="item-head">${hasTitle ? `<h3>${title}</h3>` : "<span></span>"}${star}</div>`
+    ? `<div class="item-head">${hasTitle ? `<h3>${safeTitle}</h3>` : "<span></span>"}${star}</div>`
     : "";
 
-  el.innerHTML = `${head}<p>${description}</p>`;
+  el.innerHTML = `${head}<p>${safeDescription}</p>`;
   if (favoriteItem) {
     const btn = el.querySelector(".star-btn");
     btn?.addEventListener("click", () => {
@@ -1933,6 +2092,551 @@ function formatIslamicDateLabel(date) {
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join(" ");
   return `${String(h.day).padStart(2, "0")} ${monthLabel} ${h.year}`;
+}
+
+const HIJRI_MONTH_ORDER = [
+  "muharram",
+  "safar",
+  "rabi al-awwal",
+  "rabi al-thani",
+  "jumada al-awwal",
+  "jumada al-thani",
+  "rajab",
+  "shaban",
+  "ramadan",
+  "shawwal",
+  "dhu al-qadah",
+  "dhu al-hijjah"
+];
+
+const HIJRI_MONTH_LABELS = {
+  muharram: "Muharram",
+  safar: "Safar",
+  "rabi al-awwal": "Rabi al-Awwal",
+  "rabi al-thani": "Rabi al-Thani",
+  "jumada al-awwal": "Jumada al-Awwal",
+  "jumada al-thani": "Jumada al-Thani",
+  rajab: "Rajab",
+  shaban: "Shaban",
+  ramadan: "Ramadan",
+  shawwal: "Shawwal",
+  "dhu al-qadah": "Dhu al-Qadah",
+  "dhu al-hijjah": "Dhu al-Hijjah"
+};
+
+const SHIA_MONTHLY_AMAAL_GUIDE = {
+  muharram: {
+    focus: "Month of grief, majalis, and loyalty to Imam Husayn (a.s.).",
+    recommended: [
+      "Daily recite Ziyarat Ashura with la'n and salam.",
+      "Attend majlis and matam with adab and sincerity.",
+      "Give water/food sadaqah in the name of Ahlul Bayt (a.s.).",
+      "Increase salawat and dua for reappearance of Imam al-Mahdi (a.j.)."
+    ],
+    importantDays: [
+      { day: 1, title: "Start of Muharram", amaal: ["Begin with tawbah and niyyah for Azadari."] },
+      { day: 9, title: "Tasu'a", amaal: ["Remember Hazrat Abbas (a.s.) and recite related ziyarat."] },
+      { day: 10, title: "Ashura", amaal: ["Ziyarat Ashura, mourning, and helping others in Imam's name."] },
+      { day: 13, title: "Shahadat Imam Zayn al-Abidin (a.s.) (widely observed)", amaal: ["Recite his duas from Sahifa Sajjadiya."] }
+    ]
+  },
+  safar: {
+    focus: "Continuation of mourning and remembrance of captivity and return.",
+    recommended: [
+      "Continue majalis and Quran recitation for shuhada of Karbala.",
+      "Recite Ziyarat Waritha and Ziyarat Ashura frequently.",
+      "Give charity for relief of believers and marhoomeen."
+    ],
+    importantDays: [
+      { day: 20, title: "Arbaeen", amaal: ["Recite Ziyarat Arbaeen and renew pledge to Imam Husayn (a.s.)."] },
+      { day: 28, title: "Wafat of Holy Prophet (s.a.w.) and Shahadat Imam Hasan (a.s.)", amaal: ["Send abundant salawat and hold mourning majlis."] },
+      { day: 30, title: "Shahadat Imam Ali al-Ridha (a.s.)", amaal: ["Recite his ziyarat and duas for ilm and sabr."] }
+    ]
+  },
+  "rabi al-awwal": {
+    focus: "Renewal, gratitude, and faithfulness after months of sorrow.",
+    recommended: [
+      "Thank Allah for opportunities of ibadah and service.",
+      "Recite Quran daily and maintain salawat routine.",
+      "Pray for unity and protection of the Ummah."
+    ],
+    importantDays: [
+      { day: 8, title: "Shahadat Imam Hasan al-Askari (a.s.)", amaal: ["Recite ziyarat and remember the trial of Ghaybah."] },
+      { day: 9, title: "Beginning of Imamate of Imam al-Mahdi (a.j.)", amaal: ["Recite Dua al-Ahd and pledge allegiance."] },
+      { day: 17, title: "Wiladat of Holy Prophet (s.a.w.) and Imam Ja'far al-Sadiq (a.s.)", amaal: ["Offer shukr prayers and celebrate with charity."] }
+    ]
+  },
+  "rabi al-thani": {
+    focus: "Steadiness in ibadah, akhlaq, and family responsibilities.",
+    recommended: [
+      "Maintain daily Dua-e-Faraj and Astaghfar.",
+      "Read hadith from Ahlul Bayt (a.s.) regularly.",
+      "Support family and neighbors through khidmah."
+    ],
+    importantDays: [
+      { day: 10, title: "Wafat Sayyida Ma'suma (s.a.) (common observance)", amaal: ["Recite ziyarat and seek intercession for needs."] }
+    ]
+  },
+  "jumada al-awwal": {
+    focus: "Mourning period connected with Sayyida Fatima al-Zahra (s.a.).",
+    recommended: [
+      "Recite tasbih of Sayyida Fatima (s.a.) after each prayer.",
+      "Study sermons and virtues of Sayyida Fatima (s.a.).",
+      "Give charity in her blessed name."
+    ],
+    importantDays: [
+      { day: 13, title: "Wiladat Sayyida Fatima al-Zahra (s.a.) (per many calendars)", amaal: ["Shukr prayers, salawat, and family charity."] }
+    ]
+  },
+  "jumada al-thani": {
+    focus: "Deep remembrance of Sayyida Fatima al-Zahra (s.a.).",
+    recommended: [
+      "Recite Ziyarat of Sayyida Fatima (s.a.) and salawat.",
+      "Read khutbah/ma'arif of Ahlul Bayt (a.s.).",
+      "Reflect on modesty, justice, and patience."
+    ],
+    importantDays: [
+      { day: 3, title: "Shahadat Sayyida Fatima al-Zahra (s.a.) (widely observed)", amaal: ["Majlis, ziyarat, and sadaqah for her wasila."] },
+      { day: 20, title: "Wiladat Sayyida Zaynab (s.a.)", amaal: ["Recite ziyarat and learn from her sabr and eloquence."] }
+    ]
+  },
+  rajab: {
+    focus: "Sacred month of istighfar, tawbah, and special fasts.",
+    recommended: [
+      "Recite Astaghfirullah wa atubu ilayh frequently.",
+      "Observe mustahab fasts when possible.",
+      "Recite Dua Umme Dawood and Rajab-specific adhkar."
+    ],
+    importantDays: [
+      { day: 1, title: "Wiladat Imam Muhammad al-Baqir (a.s.)", amaal: ["Recite ziyarat and pray for beneficial knowledge."] },
+      { day: 13, title: "Wiladat Imam Ali (a.s.)", amaal: ["Shukr prayers, salawat, and feeding believers."] },
+      { day: 27, title: "Mab'ath of Holy Prophet (s.a.w.)", amaal: ["Recite salawat abundantly and two-rakat shukr prayer."] }
+    ]
+  },
+  shaban: {
+    focus: "Preparation for Ramadan through mercy and purification.",
+    recommended: [
+      "Recite Munajat Shabaniyah and abundant salawat.",
+      "Fast select days as preparation for Ramadan.",
+      "Increase Quran recitation and reconciliation with others."
+    ],
+    importantDays: [
+      { day: 3, title: "Wiladat Imam Husayn (a.s.)", amaal: ["Recite Ziyarat Waritha and thank Allah."] },
+      { day: 4, title: "Wiladat Hazrat Abbas (a.s.)", amaal: ["Recite his ziyarat and ask for steadfastness."] },
+      { day: 15, title: "Wiladat Imam al-Mahdi (a.j.)", amaal: ["Recite Dua al-Nudbah, Dua al-Ahd, and give charity."] }
+    ]
+  },
+  ramadan: {
+    focus: "Month of fasting, Quran, Qadr nights, and deep dua.",
+    recommended: [
+      "Observe wajib fast and protect tongue, eyes, and heart.",
+      "Daily Quran recitation with tadabbur.",
+      "Recite Dua Iftitah, Abu Hamza, and Jawshan on nights.",
+      "Pay regular charity and feed fasting believers."
+    ],
+    importantDays: [
+      { day: 19, title: "First night of Qadr", amaal: ["Amaal-e-Qadr, Quran-on-head, and istighfar."] },
+      { day: 21, title: "Shahadat Imam Ali (a.s.) / Qadr", amaal: ["Mourning and night amaal with focus on tawbah."] },
+      {
+        day: 23,
+        title: "Most emphasized Qadr night",
+        amaal: [
+          "Recite Surah al-'Ankabut (29) and Surah al-Rum (30).\nLinks: https://quran.com/29 and https://quran.com/30",
+          "Recite Surah al-Dukhan (44).\nLink: https://quran.com/44",
+          "Recite Surah al-Qadr 1000 times.\nLink: https://quran.com/97",
+          "Repeat Dua for Imam al-Hujjah (ajtf) as much as possible:\nاللّهُمَّ كُنْ لِوَلِيِّكَ الْحُجَّةِ بْنِ الْحَسَنِ صَلَوَاتُكَ عَلَيْهِ وَعَلَى آبَائِهِ فِي هَذِهِ السَّاعَةِ وَفِي كُلِّ سَاعَةٍ وَلِيًّا وَحَافِظًا وَقَائِدًا وَنَاصِرًا وَدَلِيلًا وَعَيْنًا حَتّى تُسْكِنَهُ أَرْضَكَ طَوْعًا وَتُمَتِّعَهُ فِيهَا طَوِيلًا.",
+          "Recite:\nاللَّهُمَّ امْدُدْ لِي فِي عُمْرِي وَأَوْسِعْ لِي فِي رِزْقِي وَأَصِحَّ لِي جِسْمِي وَبَلِّغْنِي أَمَلِي، وَإِنْ كُنْتُ مِنَ الْأَشْقِيَاءِ فَامْحُنِي مِنَ الْأَشْقِيَاءِ وَاكْتُبْنِي مِنَ السُّعَدَاءِ.",
+          "Recite:\nاللَّهُمَّ اجْعَلْ فِيمَا تَقْضِي وَفِيمَا تُقَدِّرُ مِنَ الْأَمْرِ الْمَحْتُومِ... أَنْ تَكْتُبَنِي مِنْ حُجَّاجِ بَيْتِكَ الْحَرَامِ... وَأَنْ تُطِيلَ عُمْرِي وَتُوَسِّعَ لِي فِي رِزْقِي.",
+          "Recite the dua from Iqbal al-A'mal beginning with:\nيَا بَاطِنًا فِي ظُهُورِهِ وَيَا ظَاهِرًا فِي بُطُونِهِ ... سُبْحَانَ مَنْ هُوَ هَكَذَا وَلَا هَكَذَا غَيْرُهُ، then ask Allah for your needs.\nReference search: https://www.al-islam.org/search?keys=Iqbal%20al-Amal%20Laylat%20al-Qadr",
+          "Perform another ghusl at the end of the night.",
+          "Spend the whole night in worship, Qur'an recitation, and dua.",
+          "Visit Imam al-Husayn (a.s.) if possible (or recite his Ziyarat remotely).",
+          "Offer 100-rakat prayer (with Surah al-Tawhid 10 times per rakat as narrated), and if unable, pray sitting; if still unable, pray lying down.",
+          "Follow the Sunnah of reviving this night with family (staying awake for worship).",
+          "Recite from Sahifah Sajjadiyyah, especially Makarim al-Akhlaq and al-Tawbah.\nReference search: https://www.al-islam.org/search?keys=Sahifa%20Sajjadiyya%20Makarim%20al-Akhlaq",
+          "Respect the sanctity of Qadr days as well: remain in worship, Qur'an, and dua."
+        ]
+      }
+    ]
+  },
+  shawwal: {
+    focus: "Post-Ramadan continuity in taqwa and gratitude.",
+    recommended: [
+      "Protect gains of Ramadan with steady ibadah.",
+      "Maintain Quran and salawat daily.",
+      "Continue helping needy families."
+    ],
+    importantDays: [
+      { day: 1, title: "Eid al-Fitr", amaal: ["Eid prayer, Zakat al-Fitr, family ties and gratitude."] },
+      { day: 25, title: "Shahadat Imam Ja'far al-Sadiq (a.s.) (widely observed)", amaal: ["Recite ziyarat and study his teachings."] }
+    ]
+  },
+  "dhu al-qadah": {
+    focus: "Month of calm worship and preparation for Dhul Hijjah.",
+    recommended: [
+      "Daily istighfar and salawat with consistency.",
+      "Read selected sermons from Nahjul Balagha.",
+      "Renew niyyah for service and character improvement."
+    ],
+    importantDays: [
+      { day: 11, title: "Wiladat Imam Ali al-Ridha (a.s.)", amaal: ["Recite ziyarat and ask for ilm and hikmah."] },
+      { day: 25, title: "Dahwul Ard (widely observed)", amaal: ["Special duas, fasting (mustahab), and two-rakat prayers."] }
+    ]
+  },
+  "dhu al-hijjah": {
+    focus: "Month of Hajj rites, Arafah, sacrifice, and Wilayah.",
+    recommended: [
+      "Recite Takbirat and duas of this blessed month.",
+      "Perform extra charity and family service.",
+      "Renew commitment to wilayah of Amir al-Mu'minin (a.s.)."
+    ],
+    importantDays: [
+      { day: 9, title: "Arafah", amaal: ["Recite Dua Arafah of Imam Husayn (a.s.)."] },
+      { day: 10, title: "Eid al-Adha", amaal: ["Eid prayer and acts of sacrifice/service."] },
+      { day: 18, title: "Eid al-Ghadir", amaal: ["Recite ziyarat, ghusl (mustahab), salawat and feeding believers."] },
+      { day: 24, title: "Mubahala (widely observed)", amaal: ["Recite Ayat al-Mubahala and send salawat."] }
+    ]
+  }
+};
+
+function getCurrentHijriMonthKey(now = new Date()) {
+  const month = getIslamicDateInfo(now).month;
+  return HIJRI_MONTH_ORDER.includes(month) ? month : "muharram";
+}
+
+function getAmaalRouteForDate(date) {
+  const h = getIslamicDateInfo(date);
+  const monthKey = HIJRI_MONTH_ORDER.includes(h.month) ? h.month : getCurrentHijriMonthKey(date);
+  const importantDays = SHIA_MONTHLY_AMAAL_GUIDE[monthKey]?.importantDays || [];
+  const exactDay = importantDays.find((item) => Number(item.day) === Number(h.day));
+  return {
+    monthKey,
+    dayIndex: exactDay ? Number(exactDay.day) : null
+  };
+}
+
+function getAmaalEntryCacheKey(monthKey, dayIndex = null) {
+  return dayIndex === null ? `${monthKey}:overview` : `${monthKey}:day:${dayIndex}`;
+}
+
+function buildAmaalEntry(monthKey, dayIndex = null) {
+  const key = HIJRI_MONTH_ORDER.includes(monthKey) ? monthKey : getCurrentHijriMonthKey();
+  const guide = SHIA_MONTHLY_AMAAL_GUIDE[key] || SHIA_MONTHLY_AMAAL_GUIDE.muharram;
+  if (dayIndex === null) {
+    return {
+      title: `Amaal · ${HIJRI_MONTH_LABELS[key]}`,
+      meta: guide.focus,
+      monthKey: key,
+      dayIndex: null,
+      label: `${HIJRI_MONTH_LABELS[key]} Overview`,
+      sections: [
+        { heading: "Core Amaal", rows: guide.recommended || [] },
+        {
+          heading: "Notable Dates",
+          cards: (guide.importantDays || []).map((dayPlan) => ({
+            title: `${dayPlan.day} ${HIJRI_MONTH_LABELS[key]} · ${dayPlan.title}`,
+            description: (dayPlan.amaal || []).join("\n")
+          }))
+        }
+      ]
+    };
+  }
+  const dayNo = resolveAmaalDayForMonth(key, dayIndex);
+  const plan = (guide.importantDays || []).find((item) => Number(item.day) === dayNo);
+  if (!plan) return buildAmaalEntry(key, null);
+  return {
+    title: `Amaal · ${plan.day} ${HIJRI_MONTH_LABELS[key]}`,
+    meta: plan.title,
+    monthKey: key,
+    dayIndex: Number(dayNo),
+    label: `${plan.day} ${HIJRI_MONTH_LABELS[key]}`,
+    sections: [{ heading: "Complete Amaal", rows: plan.amaal || [] }]
+  };
+}
+
+function getAmaalEntry(monthKey, dayIndex = null) {
+  const cacheKey = getAmaalEntryCacheKey(monthKey, dayIndex);
+  const cached = state.amaalCache[cacheKey];
+  if (
+    cached &&
+    typeof cached === "object" &&
+    typeof cached.monthKey === "string" &&
+    typeof cached.label === "string" &&
+    Array.isArray(cached.sections)
+  ) {
+    return cached;
+  }
+  const built = buildAmaalEntry(monthKey, dayIndex);
+  state.amaalCache[cacheKey] = built;
+  saveJSON(STORAGE_KEYS.amaalCache, state.amaalCache);
+  return built;
+}
+
+function renderAmaalInSidePanel(entry) {
+  const titleEl = document.getElementById("library-title");
+  const metaEl = document.getElementById("library-meta");
+  const contentEl = document.getElementById("library-content");
+  if (!titleEl || !metaEl || !contentEl) return;
+
+  state.libraryOpen = false;
+  currentAmaalRoute = {
+    monthKey: entry.monthKey || null,
+    dayIndex: entry.dayIndex ?? null
+  };
+  syncLibraryUrlState();
+  setLibraryPanelVisibility(true);
+  updateLibraryActiveState();
+  setSurahLangControlsVisible(false);
+  setLibraryShareButton({ type: "amaal", value: `${entry.monthKey}|${entry.dayIndex ?? ""}` });
+  setMarsiyaFullscreenMode(false);
+  setMarsiyaContentOnlyMode(false);
+
+  titleEl.textContent = entry.title;
+  metaEl.textContent = entry.meta;
+  contentEl.innerHTML = "";
+  const crumbItems = [{ label: "Amaal", dataset: { "amaal-reader-nav": "index" } }];
+  if (entry.monthKey) {
+    crumbItems.push({
+      label: HIJRI_MONTH_LABELS[entry.monthKey] || entry.monthKey,
+      dataset: { "amaal-reader-nav": "month-index", "amaal-month": entry.monthKey }
+    });
+  }
+  if (entry.label) crumbItems.push({ label: entry.label, active: true });
+  contentEl.appendChild(createReaderCrumbs(crumbItems));
+
+  (entry.sections || []).forEach((section) => {
+    if (section.rows && section.rows.length) appendAmaalGroup(contentEl, section.heading, section.rows);
+    if (section.cards && section.cards.length) {
+      const sectionTitle = document.createElement("h3");
+      sectionTitle.className = "amaal-group-title";
+      sectionTitle.textContent = section.heading;
+      contentEl.appendChild(sectionTitle);
+      section.cards.forEach((card) => contentEl.appendChild(createItemCard(card.title, card.description)));
+    }
+  });
+}
+
+function renderAmaalMonthIndexInSidePanel(monthKey) {
+  const key = HIJRI_MONTH_ORDER.includes(monthKey) ? monthKey : getCurrentHijriMonthKey();
+  const guide = SHIA_MONTHLY_AMAAL_GUIDE[key] || SHIA_MONTHLY_AMAAL_GUIDE.muharram;
+  const titleEl = document.getElementById("library-title");
+  const metaEl = document.getElementById("library-meta");
+  const contentEl = document.getElementById("library-content");
+  if (!titleEl || !metaEl || !contentEl) return;
+
+  state.libraryOpen = false;
+  currentAmaalRoute = { monthKey: key, dayIndex: null };
+  syncLibraryUrlState();
+  setLibraryPanelVisibility(true);
+  updateLibraryActiveState();
+  setSurahLangControlsVisible(false);
+  setLibraryShareButton(null);
+  setMarsiyaFullscreenMode(false);
+  setMarsiyaContentOnlyMode(false);
+
+  titleEl.textContent = `Amaal · ${HIJRI_MONTH_LABELS[key]}`;
+  metaEl.textContent = "Index";
+  contentEl.innerHTML = "";
+
+  contentEl.appendChild(
+    createReaderCrumbs([
+      { label: "Amaal", dataset: { "amaal-reader-nav": "index" } },
+      { label: HIJRI_MONTH_LABELS[key], active: true, dataset: { "amaal-reader-nav": "month-index", "amaal-month": key } }
+    ])
+  );
+
+  const overviewBtn = document.createElement("button");
+  overviewBtn.type = "button";
+  overviewBtn.className = "item marsiya-index-item marsiya-index-button";
+  overviewBtn.setAttribute("data-amaal-reader-nav", "month");
+  overviewBtn.setAttribute("data-amaal-month", key);
+  overviewBtn.textContent = `${HIJRI_MONTH_LABELS[key]} Overview`;
+  contentEl.appendChild(overviewBtn);
+
+  (guide.importantDays || []).forEach((dayPlan, idx) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "item marsiya-index-item marsiya-index-button";
+    row.setAttribute("data-amaal-reader-nav", "day");
+    row.setAttribute("data-amaal-month", key);
+    row.setAttribute("data-amaal-day-index", String(dayPlan.day));
+    row.textContent = `${dayPlan.day} · ${dayPlan.title}`;
+    contentEl.appendChild(row);
+  });
+}
+
+function renderAmaalIndexInSidePanel() {
+  const titleEl = document.getElementById("library-title");
+  const metaEl = document.getElementById("library-meta");
+  const contentEl = document.getElementById("library-content");
+  if (!titleEl || !metaEl || !contentEl) return;
+
+  state.libraryOpen = false;
+  currentAmaalRoute = { monthKey: null, dayIndex: null };
+  syncLibraryUrlState();
+  setLibraryPanelVisibility(true);
+  updateLibraryActiveState();
+  setSurahLangControlsVisible(false);
+  setLibraryShareButton(null);
+  setMarsiyaFullscreenMode(false);
+  setMarsiyaContentOnlyMode(false);
+
+  titleEl.textContent = "Amaal";
+  metaEl.textContent = "Index";
+  contentEl.innerHTML = "";
+  contentEl.appendChild(createReaderCrumbs([{ label: "Amaal", active: true }]));
+
+  HIJRI_MONTH_ORDER.forEach((key) => {
+    const count = (SHIA_MONTHLY_AMAAL_GUIDE[key]?.importantDays || []).length;
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "item marsiya-index-item marsiya-index-button";
+    row.setAttribute("data-amaal-reader-nav", "month-index");
+    row.setAttribute("data-amaal-month", key);
+    row.textContent = `${HIJRI_MONTH_LABELS[key]} (${count})`;
+    contentEl.appendChild(row);
+  });
+}
+
+function buildAmaalSearchRows(query) {
+  const q = normalizeSearchText(query);
+  const rows = [];
+  HIJRI_MONTH_ORDER.forEach((key) => {
+    const guide = SHIA_MONTHLY_AMAAL_GUIDE[key] || { recommended: [], importantDays: [], focus: "" };
+    const monthDoc = normalizeSearchText(`${HIJRI_MONTH_LABELS[key]}`);
+    if (monthDoc.includes(q)) {
+      rows.push({ type: "month", monthKey: key, label: `${HIJRI_MONTH_LABELS[key]} Overview` });
+    }
+    (guide.importantDays || []).forEach((dayPlan) => {
+      const dayDoc = normalizeSearchText(`${HIJRI_MONTH_LABELS[key]} ${dayPlan.day} ${dayPlan.title}`);
+      if (dayDoc.includes(q)) {
+        rows.push({
+          type: "day",
+          monthKey: key,
+          dayIndex: Number(dayPlan.day),
+          label: `${dayPlan.day} ${HIJRI_MONTH_LABELS[key]} · ${dayPlan.title}`
+        });
+      }
+    });
+  });
+  return rows;
+}
+
+function renderMonthlyAmaalGuide(monthKey = state.amaalMonth || getCurrentHijriMonthKey(), filter = state.amaalSearchQuery || "") {
+  const root = document.getElementById("amaal-month-list");
+  if (!root) return;
+
+  const resolvedMonth = HIJRI_MONTH_ORDER.includes(monthKey) ? monthKey : getCurrentHijriMonthKey();
+  state.amaalMonth = resolvedMonth;
+  saveJSON(STORAGE_KEYS.amaalMonth, resolvedMonth);
+
+  const query = String(filter || "").trim();
+  root.innerHTML = "";
+
+  if (query) {
+    const rows = buildAmaalSearchRows(query);
+    if (!rows.length) {
+      root.appendChild(createItemCard("No matches", "No Amaal entries match your search."));
+      return;
+    }
+    rows.forEach((row) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "amaal-day-item";
+      btn.setAttribute("data-amaal-nav", row.type);
+      btn.setAttribute("data-amaal-month", row.monthKey);
+      if (row.type === "day") btn.setAttribute("data-amaal-day-index", String(row.dayIndex));
+      btn.textContent = row.label;
+      root.appendChild(btn);
+    });
+    return;
+  }
+
+  HIJRI_MONTH_ORDER.forEach((key) => {
+    const guide = SHIA_MONTHLY_AMAAL_GUIDE[key] || { importantDays: [] };
+    const notable = guide.importantDays || [];
+    const block = document.createElement("details");
+    block.className = "amaal-month-section";
+    block.open = key === resolvedMonth;
+
+    const summary = document.createElement("summary");
+    summary.textContent = `${HIJRI_MONTH_LABELS[key]} (${notable.length})`;
+    block.appendChild(summary);
+
+    const body = document.createElement("div");
+    body.className = "amaal-month-days";
+
+    const overviewBtn = document.createElement("button");
+    overviewBtn.type = "button";
+    overviewBtn.className = "amaal-day-item";
+    overviewBtn.setAttribute("data-amaal-nav", "month");
+    overviewBtn.setAttribute("data-amaal-month", key);
+    overviewBtn.textContent = `${HIJRI_MONTH_LABELS[key]} Overview`;
+    body.appendChild(overviewBtn);
+
+    notable.forEach((dayPlan, idx) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "amaal-day-item";
+      btn.setAttribute("data-amaal-nav", "day");
+      btn.setAttribute("data-amaal-month", key);
+      btn.setAttribute("data-amaal-day-index", String(dayPlan.day));
+      btn.textContent = `${dayPlan.day} · ${dayPlan.title}`;
+      body.appendChild(btn);
+    });
+
+    block.appendChild(body);
+    root.appendChild(block);
+  });
+}
+
+function wireMonthlyAmaalControls() {
+  const root = document.getElementById("amaal-month-list");
+  const search = document.getElementById("amaal-search");
+  const clear = document.getElementById("amaal-search-clear");
+  const amaalSummary = document.querySelector("#amaal-side-item > summary");
+  if (!root) return;
+
+  const runSearch = () => {
+    const query = search?.value || "";
+    state.amaalSearchQuery = query;
+    clear?.classList.toggle("hidden", !String(query || "").trim());
+    renderMonthlyAmaalGuide(state.amaalMonth || getCurrentHijriMonthKey(), query);
+  };
+
+  search?.addEventListener("input", runSearch);
+  clear?.addEventListener("click", () => {
+    if (!search) return;
+    search.value = "";
+    state.amaalSearchQuery = "";
+    clear.classList.add("hidden");
+    renderMonthlyAmaalGuide(state.amaalMonth || getCurrentHijriMonthKey(), "");
+    search.focus();
+  });
+  clear?.classList.toggle("hidden", !String(search?.value || "").trim());
+
+  amaalSummary?.addEventListener("click", () => {
+    renderAmaalIndexInSidePanel();
+    if (sidebarMobileQuery.matches) closeSidebarDrawer();
+  });
+
+  root.addEventListener("click", (event) => {
+    const target = event.target;
+    const btn = target && target.closest ? target.closest("[data-amaal-nav]") : null;
+    if (!btn) return;
+    const month = btn.getAttribute("data-amaal-month") || getCurrentHijriMonthKey();
+    const nav = btn.getAttribute("data-amaal-nav");
+    state.amaalMonth = month;
+    saveJSON(STORAGE_KEYS.amaalMonth, month);
+    renderMonthlyAmaalGuide(month, state.amaalSearchQuery);
+    if (nav === "day") {
+      const dayIndex = Number(btn.getAttribute("data-amaal-day-index") || "-1");
+      renderAmaalInSidePanel(getAmaalEntry(month, dayIndex));
+    } else {
+      renderAmaalInSidePanel(getAmaalEntry(month, null));
+    }
+    if (sidebarMobileQuery.matches) closeSidebarDrawer();
+  });
 }
 
 function includesAny(text, words) {
@@ -2078,9 +2782,6 @@ function renderTodayAmaal(now = new Date()) {
     const h = formatIslamicDateLabel(now);
     meta.textContent = `${plan.label} · ${g} · ${h} AH`;
   }
-  completeBtn?.classList.toggle("active", Boolean(state.amaalShowComplete));
-  completeBtn?.setAttribute("aria-pressed", state.amaalShowComplete ? "true" : "false");
-
   const shortLimit = 3;
   const obligatory = state.amaalShowComplete ? (plan.obligatory || []) : (plan.obligatory || []).slice(0, shortLimit);
   const recommended = state.amaalShowComplete ? (plan.recommended || []) : (plan.recommended || []).slice(0, shortLimit);
@@ -2122,8 +2823,11 @@ function wireAmaalDateControls() {
   });
 
   completeBtn?.addEventListener("click", () => {
-    state.amaalShowComplete = !state.amaalShowComplete;
-    renderTodayAmaal(parseIsoDate(state.amaalDate) || new Date());
+    const selectedDate = parseIsoDate(state.amaalDate) || new Date();
+    const route = getAmaalRouteForDate(selectedDate);
+    state.amaalMonth = route.monthKey;
+    saveJSON(STORAGE_KEYS.amaalMonth, state.amaalMonth);
+    renderAmaalInSidePanel(getAmaalEntry(route.monthKey, route.dayIndex));
   });
 }
 
@@ -2169,6 +2873,7 @@ function wireSettings() {
     saveJSON(STORAGE_KEYS.settings, state.settings);
     renderPrayerTracker();
     renderTodayAmaal(parseIsoDate(state.amaalDate) || new Date());
+    renderMonthlyAmaalGuide(state.amaalMonth || getCurrentHijriMonthKey());
   });
 
   saveApiBtn?.addEventListener("click", () => {
@@ -2474,6 +3179,7 @@ function renderAllFromState() {
   if (state.libraryOpen) renderLibrarySection(state.libraryIndex);
   else updateLibraryActiveState();
   renderData(state.lastData.pub, state.lastData.priv, state.lastData.prayerTimes ?? { times: {} }, state.lastData.places);
+  renderMonthlyAmaalGuide(state.amaalMonth || getCurrentHijriMonthKey());
 }
 
 function registerServiceWorker() {
@@ -2628,6 +3334,7 @@ async function load() {
   renderBookmark();
   applyAmaalDateUI();
   wireAmaalDateControls();
+  wireMonthlyAmaalControls();
   wirePrayerLocationControls();
   wireMobileSidebar();
   await loadMarsiyaCatalog();
@@ -2636,6 +3343,12 @@ async function load() {
   syncPrayerPanelPlacement();
   mobilePrayerPanelQuery.addEventListener("change", syncPrayerPanelPlacement);
   renderTodayAmaal(parseIsoDate(state.amaalDate) || new Date());
+  renderMonthlyAmaalGuide(state.amaalMonth || getCurrentHijriMonthKey());
+  if (pendingAmaalRoute) {
+    const { monthKey, dayIndex } = pendingAmaalRoute;
+    if (dayIndex === null) renderAmaalInSidePanel(getAmaalEntry(monthKey, null));
+    else renderAmaalInSidePanel(getAmaalEntry(monthKey, dayIndex));
+  }
 
   try {
     const today = getLocalIsoDate();
